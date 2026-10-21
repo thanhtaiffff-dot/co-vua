@@ -87,15 +87,15 @@ body {
 /* ---------- Đầu trang ---------- */
 .topbar {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
   width: 100%;
   max-width: 1040px;
   margin-inline: auto;
 }
 
 .brand {
+  flex: none;
   margin: 0;
   font-family: var(--font-display);
   font-weight: 800;
@@ -105,11 +105,47 @@ body {
 }
 
 .badge {
+  min-width: 0;
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  text-wrap: balance;
   color: var(--muted);
+}
+
+/* Nút loa tắt/bật âm thanh, nằm bên phải đầu trang; điện thoại hẹp thì dòng chữ bên cạnh tự xuống hàng */
+.icon-btn {
+  margin-left: auto;
+  align-self: center;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.icon-btn:hover {
+  border-color: var(--accent);
+}
+
+.icon-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.icon-btn--off {
+  color: var(--muted);
+  background: var(--surface-2);
 }
 
 /* ---------- Bàn cờ ---------- */
@@ -532,6 +568,7 @@ body {
 }
 
 .btn:focus-visible,
+.icon-btn:focus-visible,
 .tc__choice:focus-visible,
 .promotion__choice:focus-visible,
 .link-button:focus-visible,
