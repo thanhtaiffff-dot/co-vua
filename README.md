@@ -7,6 +7,7 @@ Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước 
 - Kéo thả hoặc bấm để đi quân, chấm gợi ý các ô đi được.
 - Đủ luật cờ: nhập thành, bắt tốt qua đường, phong cấp (tự chọn Hậu, Xe, Tượng, Mã), chiếu, chiếu bí.
 - Tự xử hòa: hết nước đi (pat), không đủ quân chiếu bí, lặp thế cờ 3 lần, luật 50 nước.
+- Đồng hồ đếm giờ: chọn từ 1 tới 30 phút mỗi bên, có loại được cộng giờ sau mỗi nước (3 | 2, 15 | 10…), hoặc không tính giờ. Đồng hồ chạy từ lúc Trắng đi nước đầu. Hết giờ là thua, trừ khi đối thủ không còn đủ quân để chiếu bí thì hòa.
 - Danh sách nước đi kiểu ký hiệu cờ (e4, Nf3, O-O…), quân đã ăn và chênh lệch điểm quân.
 - Đi lại, ván mới (bấm hai lần để chắc chắn), lật bàn, tự xoay bàn theo lượt.
 - Tải lại trang vẫn giữ ván đang chơi.
@@ -30,9 +31,10 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 | File | Vai trò |
 | --- | --- |
 | `src/game/rules.ts` | Luật cờ: đi được đâu, ai thắng, hòa kiểu gì, điểm quân |
-| `src/game/rules.test.ts` | Bài kiểm tra tự động cho luật cờ |
+| `src/game/clock.ts` | Đồng hồ: các mức giờ, trừ giờ, cộng giờ sau mỗi nước, đi lại thì giờ quay về |
+| `src/game/*.test.ts` | Bài kiểm tra tự động cho luật cờ và đồng hồ |
 | `src/components/Board.tsx` | Bàn cờ (bọc thư viện chessground) |
-| `src/components/` | Các mảnh giao diện khác: thanh người chơi, chọn quân phong cấp, danh sách nước đi |
+| `src/components/` | Các mảnh giao diện khác: thanh người chơi kèm đồng hồ, chọn thời gian, chọn quân phong cấp, danh sách nước đi |
 | `src/App.tsx` | Ghép mọi thứ lại, giữ trạng thái ván cờ |
 | `src/index.css` | Màu sắc, bố cục, chế độ sáng/tối |
 | `wrangler.jsonc` | Cài đặt để Cloudflare build và đưa web lên mạng |

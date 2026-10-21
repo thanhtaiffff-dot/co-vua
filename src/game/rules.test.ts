@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import { gameStatus, isPromotion, legalDests, materialDiff, replay, resultScore } from './rules'
+import { canCheckmate, gameStatus, isPromotion, legalDests, materialDiff, replay, resultScore, timeoutStatus } from './rules'
 
 describe('nước đi hợp lệ', () => {
   it('thế cờ ban đầu có 20 nước, từ 10 quân', () => {
@@ -87,5 +87,31 @@ describe('chênh lệch quân', () => {
   it('tính đúng khi có hậu phong cấp', () => {
     const diff = materialDiff(new Chess('3qk3/8/8/8/8/8/8/Q2QK3 w - - 0 1'))
     expect(diff.w).toEqual({ pieces: ['q'], score: 9 })
+  })
+})
+
+describe('hết giờ', () => {
+  it('hết giờ là thua', () => {
+    const status = timeoutStatus(new Chess(), 'w')
+    expect(status).toEqual({ kind: 'timeout', winner: 'b' })
+    expect(resultScore(status)).toBe('0–1')
+  })
+
+  it('đối thủ chỉ còn vua thì hết giờ vẫn hòa', () => {
+    const status = timeoutStatus(new Chess('8/8/8/4k3/8/8/3PPP2/4K3 b - - 0 1'), 'w')
+    expect(status).toEqual({ kind: 'timeoutDraw', flagged: 'w' })
+    expect(resultScore(status)).toBe('½–½')
+  })
+
+  it('còn chiếu bí được hay không, xét theo quân còn lại của hai bên', () => {
+    const can = (fen: string) => canCheckmate(new Chess(fen), 'w')
+    expect(can('4k3/8/8/8/8/8/8/4K2R w - - 0 1')).toBe(true) // Xe
+    expect(can('4k3/4p3/8/8/8/8/8/4KN2 w - - 0 1')).toBe(true) // Mã, Đen còn tốt để tự chắn
+    expect(can('4k3/4q3/8/8/8/8/8/4KN2 w - - 0 1')).toBe(false) // Mã gặp Hậu
+    expect(can('4k3/8/8/8/8/8/8/3NKN2 w - - 0 1')).toBe(true) // hai Mã
+    expect(can('4k3/4r3/8/8/8/8/8/4KB2 w - - 0 1')).toBe(false) // Tượng gặp Xe
+    expect(can('4k3/4p3/8/8/8/8/8/4KB2 w - - 0 1')).toBe(true) // Tượng, Đen còn tốt để tự chắn
+    expect(can('4kb2/8/8/8/8/8/8/4KB2 w - - 0 1')).toBe(true) // Tượng gặp Tượng khác màu ô
+    expect(can('4k1b1/8/8/8/8/8/8/4KB2 w - - 0 1')).toBe(false) // Tượng gặp Tượng cùng màu ô
   })
 })

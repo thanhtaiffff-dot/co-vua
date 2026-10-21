@@ -270,6 +270,45 @@ body {
   color: var(--accent);
 }
 
+/* ---------- Đồng hồ ---------- */
+/* Đồng hồ đang chạy thì đổi sang nền đậm cho nổi; sắp hết giờ thì đỏ */
+.clock {
+  margin-left: auto;
+  flex: none;
+  min-width: 6.5ch;
+  padding: 3px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.15rem;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.clock--running {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+
+.clock--low {
+  color: var(--danger);
+}
+
+.clock--running.clock--low,
+.clock--out {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--surface);
+}
+
 /* ---------- Phong cấp ---------- */
 .promotion {
   position: absolute;
@@ -373,6 +412,84 @@ body {
   font-size: 0.85rem;
 }
 
+.status__clock {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* ---------- Chọn thời gian ---------- */
+.tc {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.tc__title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.tc__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tc__name {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tc__choices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.tc__choice {
+  font: inherit;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 8px 4px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.tc__choice:hover {
+  border-color: var(--accent);
+}
+
+.tc__choice--on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.tc__choice--wide {
+  font-weight: 600;
+}
+
+.tc__hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .controls {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -415,6 +532,7 @@ body {
 }
 
 .btn:focus-visible,
+.tc__choice:focus-visible,
 .promotion__choice:focus-visible,
 .link-button:focus-visible,
 .switch input:focus-visible + .switch__track {
