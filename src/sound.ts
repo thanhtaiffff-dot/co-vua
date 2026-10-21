@@ -1,29 +1,34 @@
 // Âm thanh của bàn cờ. Phát bằng Web Audio để bấm là kêu ngay (thẻ <audio> trên điện thoại hay bị trễ).
 // Trình duyệt chỉ cho phát tiếng sau khi người chơi chạm vào trang, nên bộ phát được bật ở lần chạm đầu tiên.
 import type { MoveFacts } from './game/rules'
-import capture from './sounds/wood/capture.mp3'
-import castle from './sounds/wood/castle.mp3'
-import check from './sounds/wood/check.mp3'
-import draw from './sounds/wood/draw.mp3'
-import end from './sounds/wood/end.mp3'
-import lowTime from './sounds/wood/low-time.mp3'
-import move from './sounds/wood/move.mp3'
-import promote from './sounds/wood/promote.mp3'
-import start from './sounds/wood/start.mp3'
 
-// Bộ tiếng "Gỗ", tạo bằng `npm run sounds` (xem tools/sounds/make-sounds.mjs).
-const FILES = { move, capture, castle, check, promote, end, draw, lowTime, start }
+// Các bộ tiếng, tạo bằng `npm run sounds` (xem tools/sounds/make-sounds.mjs). Mỗi bộ là một thư mục trong src/sounds.
+export const SOUND_SETS = ['wood', '8bit', 'bubble'] as const
+export type SoundSet = (typeof SOUND_SETS)[number]
 
-export type SoundName = keyof typeof FILES
+export const SOUND_NAMES = ['move', 'capture', 'castle', 'check', 'promote', 'end', 'draw', 'lowTime', 'start'] as const
+export type SoundName = (typeof SOUND_NAMES)[number]
+
+// Đường dẫn tới mọi file tiếng (bản gộp một file thì là chính dữ liệu "data:..."). Máy chỉ tải bộ đang dùng.
+const URLS = import.meta.glob<string>('./sounds/*/*.mp3', { eager: true, import: 'default' })
+
+// File của tiếng `name` trong bộ `set`, ví dụ lowTime của bộ Gỗ là sounds/wood/low-time.mp3.
+export function soundUrl(set: SoundSet, name: SoundName): string | undefined {
+  const file = name.replace(/[A-Z]/g, (letter) => '-' + letter.toLowerCase())
+  return URLS[`./sounds/${set}/${file}.mp3`]
+}
 
 // Tiếng báo chiếu, phong cấp vang lên ngay sau tiếng quân đặt xuống.
 const ACCENT_DELAY = 0.03
 
 let ctx: AudioContext | null = null
 let output: GainNode | null = null
-const buffers = new Map<SoundName, AudioBuffer>()
 let enabled = true
+let current: SoundSet = 'wood'
 let lastTouch = 0
+// Tiếng đã đọc xong của từng bộ. Mỗi bộ chỉ đọc một lần, lúc cần tới.
+const buffers = new Map<SoundSet, Map<SoundName, AudioBuffer>>()
+const loading = new Map<SoundSet, Promise<void>>()
 
 export function setSoundEnabled(on: boolean): void {
   enabled = on
@@ -39,28 +44,58 @@ async function read(url: string): Promise<ArrayBuffer> {
   return response.arrayBuffer()
 }
 
+// Đọc cả bộ `set` cho sẵn sàng phát. Chưa có bộ phát (chưa chạm vào trang) thì để lúc mở khoá mới đọc.
+function load(set: SoundSet): Promise<void> {
+  const audio = ctx
+  if (!audio) return Promise.resolve()
+  let done = loading.get(set)
+  if (!done) {
+    const ready = new Map<SoundName, AudioBuffer>()
+    buffers.set(set, ready)
+    done = Promise.all(
+      SOUND_NAMES.map(async (name) => {
+        const url = soundUrl(set, name)
+        if (!url) return
+        try {
+          ready.set(name, await audio.decodeAudioData(await read(url)))
+        } catch {
+          // Máy không đọc được tiếng nào thì tiếng đó im, ván vẫn chơi bình thường.
+        }
+      }),
+    ).then(() => {})
+    loading.set(set, done)
+  }
+  return done
+}
+
+// Đổi sang bộ tiếng `set`. Xong khi bộ đó đã sẵn sàng phát.
+export function selectSoundSet(set: SoundSet): Promise<void> {
+  current = set
+  return load(set)
+}
+
+// Đổi sang bộ `set` rồi kêu thử tiếng đi quân và ăn quân của bộ đó (người chơi kịp đổi sang bộ khác thì thôi).
+export async function previewSoundSet(set: SoundSet): Promise<void> {
+  await selectSoundSet(set)
+  if (current !== set) return
+  playSound('move')
+  playSound('capture', 0.3)
+}
+
 function unlock(): void {
   lastTouch = performance.now()
   if (!ctx) {
     if (typeof AudioContext === 'undefined') return
-    const audio = new AudioContext()
-    output = audio.createGain()
+    ctx = new AudioContext()
+    output = ctx.createGain()
     output.gain.value = 0.9
-    output.connect(audio.destination)
+    output.connect(ctx.destination)
     // iPhone đời cũ cần phát một tiếng (dù im lặng) ngay trong lần chạm thì mới mở khoá.
-    const silence = audio.createBufferSource()
-    silence.buffer = audio.createBuffer(1, 1, audio.sampleRate)
-    silence.connect(audio.destination)
+    const silence = ctx.createBufferSource()
+    silence.buffer = ctx.createBuffer(1, 1, ctx.sampleRate)
+    silence.connect(ctx.destination)
     silence.start()
-    for (const [name, url] of Object.entries(FILES) as [SoundName, string][]) {
-      read(url)
-        .then((data) => audio.decodeAudioData(data))
-        .then((buffer) => buffers.set(name, buffer))
-        .catch(() => {
-          // Máy không đọc được tiếng nào thì tiếng đó im, ván vẫn chơi bình thường.
-        })
-    }
-    ctx = audio
+    load(current)
   }
   if (ctx.state !== 'running') ctx.resume().catch(() => {})
 }
@@ -75,10 +110,10 @@ export function setupSound(): () => void {
   }
 }
 
-// Phát tiếng `name` sau `delay` giây. Bộ phát đang dừng mà người chơi không vừa chạm vào trang (ví dụ báo hết giờ
-// lúc vừa tải lại trang) thì bỏ qua, kẻo tiếng dồn lại rồi kêu một loạt khi bộ phát chạy tiếp.
+// Phát tiếng `name` của bộ đang dùng sau `delay` giây. Bộ phát đang dừng mà người chơi không vừa chạm vào trang
+// (ví dụ báo hết giờ lúc vừa tải lại trang) thì bỏ qua, kẻo tiếng dồn lại rồi kêu một loạt khi bộ phát chạy tiếp.
 export function playSound(name: SoundName, delay = 0): void {
-  const buffer = buffers.get(name)
+  const buffer = buffers.get(current)?.get(name)
   if (!enabled || !ctx || !output || !buffer) return
   if (ctx.state !== 'running' && performance.now() - lastTouch > 1000) return
   const source = ctx.createBufferSource()

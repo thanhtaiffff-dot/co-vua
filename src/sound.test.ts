@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MoveFacts } from './game/rules'
-import { moveSounds } from './sound'
+import { moveSounds, SOUND_NAMES, SOUND_SETS, soundUrl } from './sound'
 
 const none: MoveFacts = { capture: false, castle: false, promotion: false, check: false, mate: false }
 const names = (facts: Partial<MoveFacts>) => moveSounds({ ...none, ...facts }).map(([name]) => name)
@@ -26,5 +26,17 @@ describe('nước đi kêu tiếng gì', () => {
   it('chiếu bí thì chỉ có tiếng quân, để tiếng hết ván kêu ngay sau', () => {
     expect(names({ check: true, mate: true })).toEqual(['move'])
     expect(names({ promotion: true, check: true, mate: true })).toEqual(['move'])
+  })
+})
+
+describe('các bộ tiếng', () => {
+  it('bộ nào cũng có đủ tiếng cho mọi việc', () => {
+    for (const set of SOUND_SETS) {
+      for (const name of SOUND_NAMES) expect(soundUrl(set, name), `${set}/${name}`).toBeTypeOf('string')
+    }
+  })
+
+  it('tiếng của mỗi bộ nằm trong thư mục của bộ đó', () => {
+    expect(soundUrl('8bit', 'lowTime')).toMatch(/8bit\/low-time/)
   })
 })

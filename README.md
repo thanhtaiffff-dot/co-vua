@@ -8,7 +8,7 @@ Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước 
 - Đủ luật cờ: nhập thành, bắt tốt qua đường, phong cấp (tự chọn Hậu, Xe, Tượng, Mã), chiếu, chiếu bí.
 - Tự xử hòa: hết nước đi (pat), không đủ quân chiếu bí, lặp thế cờ 3 lần, luật 50 nước.
 - Đồng hồ đếm giờ: chọn từ 1 tới 30 phút mỗi bên, có loại được cộng giờ sau mỗi nước (3 | 2, 15 | 10…), hoặc không tính giờ. Đồng hồ chạy từ lúc Trắng đi nước đầu. Hết giờ là thua, trừ khi đối thủ không còn đủ quân để chiếu bí thì hòa.
-- Âm thanh bộ "Gỗ": tiếng quân gỗ khi đi, ăn quân, nhập thành; tiếng đàn gỗ báo chiếu, phong cấp, hết ván, hòa, ván mới; tiếng tích tắc khi đồng hồ sắp hết giờ. Nút loa ở góc trên để tắt/bật, máy tự nhớ. iPhone gạt sang chế độ im lặng thì web cũng im.
+- Âm thanh cho mọi việc: đi quân, ăn quân, nhập thành, chiếu, phong cấp, hết ván, hòa, ván mới, đồng hồ sắp hết giờ. Có 3 bộ tiếng để chọn ở nút nốt nhạc góc trên: **Gỗ** (quân gỗ, đàn gỗ), **8-bit** (máy chơi game đời cũ), **Bong bóng** (tiếng "bóp" tròn, êm). Nút loa bên cạnh để tắt/bật. Máy nào nhớ lựa chọn của máy đó. iPhone gạt sang chế độ im lặng thì web cũng im.
 - Danh sách nước đi kiểu ký hiệu cờ (e4, Nf3, O-O…), quân đã ăn và chênh lệch điểm quân.
 - Đi lại, ván mới (bấm hai lần để chắc chắn), lật bàn, tự xoay bàn theo lượt.
 - Tải lại trang vẫn giữ ván đang chơi.
@@ -35,8 +35,8 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 | `src/game/rules.ts` | Luật cờ: đi được đâu, ai thắng, hòa kiểu gì, điểm quân |
 | `src/game/clock.ts` | Đồng hồ: các mức giờ, trừ giờ, cộng giờ sau mỗi nước, đi lại thì giờ quay về |
 | `src/**/*.test.ts` | Bài kiểm tra tự động cho luật cờ, đồng hồ và âm thanh |
-| `src/sound.ts` | Âm thanh: nước nào kêu tiếng gì, mở khoá tiếng ở lần chạm đầu, tắt/bật tiếng |
-| `src/sounds/` | Các file âm thanh (MP3) |
+| `src/sound.ts` | Âm thanh: nước nào kêu tiếng gì, mở khoá tiếng ở lần chạm đầu, đổi bộ tiếng, tắt/bật tiếng |
+| `src/sounds/` | Các file âm thanh (MP3), mỗi bộ tiếng một thư mục |
 | `tools/sounds/` | Code tạo ra file âm thanh, kèm tiếng gỗ gốc của Kenney |
 | `src/components/Board.tsx` | Bàn cờ (bọc thư viện chessground) |
 | `src/components/` | Các mảnh giao diện khác: thanh người chơi kèm đồng hồ, chọn thời gian, chọn quân phong cấp, danh sách nước đi |
@@ -55,7 +55,7 @@ Web chạy trên Cloudflare Workers, gói miễn phí. Mỗi lần một Pull Re
 3. Tài khoản, điểm Elo, tên miền riêng.
 4. Máy phân tích Stockfish, cài như ứng dụng trên điện thoại, bàn cờ 3D.
 
-Theme bàn cờ, bộ quân và các bộ âm thanh khác (8-bit, Bong bóng đã có sẵn trong `tools/sounds`) sẽ thêm xen giữa các bước.
+Theme bàn cờ, bộ quân và thêm bộ âm thanh mới sẽ thêm xen giữa các bước.
 
 ## Giấy phép và ghi công
 
@@ -64,5 +64,5 @@ Code dự án phát hành theo **GPL-3.0-or-later** (xem file `LICENSE`), vì b�
 - [chess.js](https://github.com/jhlywa/chess.js): luật cờ, giấy phép BSD-2-Clause.
 - [chessground](https://github.com/lichess-org/chessground): bàn cờ của lichess, giấy phép GPL-3.0-or-later.
 - Bộ quân cburnett: Colin M.L. Burnett, giấy phép GPLv2+.
-- Tiếng gỗ: [Kenney](https://kenney.nl), bộ Impact Sounds và Casino Audio, giấy phép CC0 (tặng cho mọi người, ai dùng cũng được). Tiếng đàn gỗ, chuông, tích tắc do code của dự án tự tạo.
+- Tiếng gỗ: [Kenney](https://kenney.nl), bộ Impact Sounds và Casino Audio, giấy phép CC0 (tặng cho mọi người, ai dùng cũng được). Tiếng đàn gỗ, chuông, tích tắc và cả bộ 8-bit, Bong bóng do code của dự án tự tạo.
 - Phông chữ Be Vietnam Pro và JetBrains Mono qua Google Fonts, giấy phép SIL Open Font License.
