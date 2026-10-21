@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 dist-single
+
+# Cloudflare
+.wrangler
+.dev.vars*
