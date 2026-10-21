@@ -1,0 +1,11 @@
+// Cài đặt cho Cloudflare: hiện web chỉ gồm các file tĩnh Vite build ra trong dist, chưa có máy chủ.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "co-vua",
+  "compatibility_date": "2026-10-19",
+  "build": { "command": "npm run build" },
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

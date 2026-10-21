@@ -14,7 +14,7 @@ Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước 
 
 ## Chạy trên máy của bạn
 
-Cần cài [Node.js](https://nodejs.org) bản 22 LTS (tối thiểu 20.19). Mở Terminal trong thư mục này rồi gõ:
+Cần cài [Node.js](https://nodejs.org) bản LTS (tối thiểu 20.19). Mở Terminal trong thư mục này rồi gõ:
 
 | Lệnh | Làm gì |
 | --- | --- |
@@ -35,6 +35,11 @@ Cần cài [Node.js](https://nodejs.org) bản 22 LTS (tối thiểu 20.19). M�
 | `src/components/` | Các mảnh giao diện khác: thanh người chơi, chọn quân phong cấp, danh sách nước đi |
 | `src/App.tsx` | Ghép mọi thứ lại, giữ trạng thái ván cờ |
 | `src/index.css` | Màu sắc, bố cục, chế độ sáng/tối |
+| `wrangler.jsonc` | Cài đặt để Cloudflare build và đưa web lên mạng |
+
+## Web lên mạng thế nào
+
+Web chạy trên Cloudflare Workers, gói miễn phí. Mỗi lần một Pull Request được Merge vào nhánh `main`, Cloudflare tự tải code về, chạy `npm run build` rồi đưa bản mới lên. Pull Request chưa Merge thì có link xem thử riêng, web chính không bị đụng tới.
 
 ## Lộ trình
 
