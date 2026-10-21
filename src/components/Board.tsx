@@ -1,9 +1,9 @@
 // Lớp bọc nhỏ để dùng bàn cờ chessground (của lichess) trong React.
 import { useEffect, useRef } from 'react'
-import { Chessground } from 'chessground'
-import type { Api } from 'chessground/api'
-import type { Config } from 'chessground/config'
-import type { Key } from 'chessground/types'
+import { Chessground } from '@lichess-org/chessground'
+import type { Api } from '@lichess-org/chessground/api'
+import type { Config } from '@lichess-org/chessground/config'
+import type { Key } from '@lichess-org/chessground/types'
 
 type Props = {
   config: Config

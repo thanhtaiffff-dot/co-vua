@@ -14,7 +14,7 @@ Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước 
 
 ## Chạy trên máy của bạn
 
-Cần cài [Node.js](https://nodejs.org) bản LTS (tối thiểu 20.19). Mở Terminal trong thư mục này rồi gõ:
+Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bàn cờ cần từ bản 24). Mở Terminal trong thư mục này rồi gõ:
 
 | Lệnh | Làm gì |
 | --- | --- |
