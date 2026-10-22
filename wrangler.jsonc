@@ -1,11 +1,21 @@
-// Cài đặt cho Cloudflare: hiện web chỉ gồm các file tĩnh Vite build ra trong dist, chưa có máy chủ.
+// Cài đặt cho Cloudflare. Web gồm hai phần:
+// - các file tĩnh Vite build ra trong dist (trang web, code chạy trên máy người chơi, hình, tiếng);
+// - worker/index.ts: máy chủ nhỏ lo chơi online, chỉ chạy cho các địa chỉ /api/...
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "chess",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-10-19",
   "build": { "command": "npm run build" },
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
-  }
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // Mỗi phòng chơi online là một Durable Object lớp ChessRoom (xem worker/room-server.ts).
+  // Gói miễn phí của Cloudflare chỉ cho loại lưu bằng SQLite, nên khai báo ở "new_sqlite_classes".
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "ChessRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChessRoom"] }]
 }
