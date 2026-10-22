@@ -1,6 +1,6 @@
 // Tạo các file âm thanh (MP3) cho bàn cờ, ghi vào src/sounds/<tên bộ>/.
-// Tiếng gỗ là tiếng thu thật của Kenney (CC0, trong tools/sounds/kenney/); tiếng mộc cầm, chuông,
-// 8-bit và bong bóng do chính file này tự tạo bằng toán, nên muốn sửa tiếng thì sửa số ở đây rồi chạy lại.
+// Bộ Gỗ là tiếng gõ thu thật của Kenney (CC0, trong tools/sounds/kenney/); bộ 8-bit và Bong bóng do chính
+// file này tự tạo bằng toán, nên muốn sửa tiếng thì sửa số ở đây rồi chạy lại.
 //
 // Cách chạy (cần cài ffmpeg): node tools/sounds/make-sounds.mjs [tên bộ ...]
 // Không ghi tên bộ thì tạo hết các bộ.
@@ -15,13 +15,34 @@ const OUT = join(HERE, '../../src/sounds')
 
 // ---------- Đọc, ghi file (nhờ ffmpeg) ----------
 
-function load(name) {
+function read(name) {
   const result = spawnSync('ffmpeg', ['-v', 'error', '-i', join(HERE, 'kenney', name), '-ac', '1', '-ar', String(SR), '-f', 'f32le', '-'], {
     maxBuffer: 1 << 26,
   })
   if (result.status !== 0) throw new Error(`Không đọc được ${name}: ${result.stderr}`)
   // Chép ra vùng nhớ riêng để đọc thành số thực 4 byte cho thẳng hàng.
-  return trimStart(new Float32Array(new Uint8Array(result.stdout).buffer))
+  return new Float32Array(new Uint8Array(result.stdout).buffer)
+}
+
+function load(name) {
+  return trimStart(read(name))
+}
+
+// Lấy riêng một cú chạm trong bản thu có nhiều cú (như xúc xắc nảy trên bàn): tìm chỗ bắt đầu quanh giây `at`,
+// lấy `seconds` giây, vuốt nhẹ hai đầu cho khỏi lụp bụp.
+function hit(name, at, seconds) {
+  const x = read(name)
+  const from = Math.max(0, Math.round((at - 0.02) * SR))
+  const to = Math.min(x.length, Math.round((at + 0.03) * SR))
+  let peak = 0
+  for (let i = from; i < to; i++) peak = Math.max(peak, Math.abs(x[i]))
+  let onset = from
+  while (onset < to && Math.abs(x[onset]) < peak * 0.25) onset++
+  const start = Math.max(0, onset - Math.round(0.0015 * SR))
+  const out = x.slice(start, start + Math.round(seconds * SR))
+  const fadeIn = Math.round(0.0008 * SR)
+  for (let i = 0; i < fadeIn; i++) out[i] *= i / fadeIn
+  return fadeOut(out, Math.min(0.03, seconds / 3))
 }
 
 function writeMp3(x, file) {
@@ -154,6 +175,15 @@ function finish(x, targetDb) {
   return fadeOut(out, 0.01)
 }
 
+// Tiếng gõ thật rất ngắn, đỉnh nhọn lúc chạm, nên chạm trần trước khi đủ to. Nén riêng cái đỉnh đó vừa đủ để đạt
+// mức to `targetDb`, nhưng không quá 6 dB cho tiếng còn tự nhiên (thiếu thì chịu nhỏ hơn chút).
+function softenPeak(x, targetDb) {
+  let peak = 0
+  for (const v of x) peak = Math.max(peak, Math.abs(v))
+  const over = targetDb - loudness(x) + 20 * Math.log10(peak) + 1
+  return over > 0.2 ? limit(x, Math.min(over, 6), 0.006) : x
+}
+
 // ---------- Tự tạo tiếng ----------
 
 // Số ngẫu nhiên có hạt giống cố định: chạy lại bao nhiêu lần cũng ra đúng tiếng cũ.
@@ -190,28 +220,6 @@ const note = (name) => {
   const [, letter, accidental, octave] = /^([A-G])(#?)(\d)$/.exec(name)
   const semitone = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[letter] + (accidental ? 1 : 0)
   return 440 * 2 ** ((semitone - 9) / 12 + (Number(octave) - 4))
-}
-
-// Mộc cầm (marimba): thanh gỗ gõ bằng dùi, họa âm thứ hai cao gấp ~4 lần, tắt rất nhanh.
-function marimba(name, seconds = 1) {
-  const f = note(name)
-  const body = Math.min(0.6, 0.35 * (523 / f) ** 0.5)
-  const bar = tone(f, [[1, 1, body], [3.93, 0.32, 0.09], [9.2, 0.08, 0.025]], seconds)
-  const mallet = filter(noise(0.01, 0.002, Math.round(f)), 'lowpass', 3500)
-  return mix({ sound: bar }, { sound: mallet, gain: 0.25 })
-}
-
-// Chuông nhỏ trong veo (như chuông gió / đàn celesta).
-function bell(name, seconds = 1.2) {
-  const f = note(name)
-  return tone(f, [[1, 1, 0.7], [1.003, 0.4, 0.7], [2, 0.35, 0.3], [3, 0.12, 0.18], [4.2, 0.06, 0.1]], seconds, 0.003)
-}
-
-// Mõ gỗ: "tách" ngắn, dùng cho tiếng tích tắc.
-function woodblock(freq) {
-  const body = tone(freq, [[1, 1, 0.028], [2.71, 0.35, 0.012]], 0.12, 0.0008)
-  const click = filter(noise(0.006, 0.0015, Math.round(freq)), 'highpass', 2000)
-  return mix({ sound: body }, { sound: click, gain: 0.3 })
 }
 
 // Sóng xung của máy chơi game 8-bit. `from` -> `to`: trượt cao độ; `duty`: độ "mỏng" của tiếng.
@@ -286,46 +294,51 @@ function arpeggio(make, names, step, last = 1) {
 const LEVEL = { move: -20, capture: -18, castle: -20, check: -19, promote: -19.5, end: -19, draw: -20, lowTime: -19, start: -21 }
 
 const SETS = {
-  // Gỗ: quân gỗ đặt xuống bàn gỗ (tiếng thu thật), thông báo bằng mộc cầm cho hợp tông gỗ.
+  // Gỗ: mọi tiếng đều là tiếng gõ thu thật, để đúng cao độ gốc, không pha đàn hay chuông. Mỗi cú gõ gồm cú chạm
+  // mặt bàn (gọn, nghe rõ cả trên loa điện thoại) và tiếng thân gỗ rỗng vang nhẹ bên dưới cho ấm.
   wood() {
-    // Tiếng gốc là gõ vào khối gỗ to, còn quân cờ thì nhỏ: phát nhanh hơn cho tiếng cao và gọn, bỏ tiếng ù
-    // dưới 200 Hz, tăng dải 2 kHz rồi nén đỉnh, để tiếng "cộc" nghe rõ cả trên loa điện thoại.
-    const knock = (name, rate) => {
-      const raw = speed(cut(load(name), 0.22), rate)
-      return limit(filter(filter(filter(raw, 'highpass', 200), 'highpass', 200), 'peak', 2000, { q: 0.8, gainDb: 6 }), 8, 0.008)
+    const clean = (x) => filter(x, 'highpass', 60)
+    // Cú chạm mặt bàn: lấy từ bản thu xúc xắc rơi xuống bàn, mỗi cú khác nhau chút ít.
+    const tap = {
+      bright: clean(hit('die-throw-1.ogg', 0.156, 0.11)),
+      a: clean(hit('die-throw-2.ogg', 0.078, 0.13)),
+      b: clean(hit('die-throw-2.ogg', 0.216, 0.12)),
+      c: clean(hit('die-throw-2.ogg', 0.347, 0.06)),
+      d: clean(hit('die-throw-3.ogg', 0.075, 0.14)),
+      e: clean(hit('die-throw-4.ogg', 0.123, 0.12)),
     }
-    // Chút tiếng trầm của mặt bàn gỗ cho ấm, khi nghe bằng tai nghe.
-    const board = filter(cut(load('impactWood_light_002.ogg'), 0.15), 'highpass', 90)
-    const place = mix({ sound: knock('impactWood_light_004.ogg', 1.4) }, { sound: board, gain: 0.2 })
-    // Ăn quân: tiếng "cạch" của hai quân va nhau, rồi quân đáp xuống bàn.
-    const clack = filter(cut(load('chips-collide-1.ogg'), 0.12), 'highpass', 900)
-    return {
+    // Thân gỗ: tiếng gõ khối gỗ rỗng, "bụp" trầm và tròn.
+    const body = (name, seconds = 0.22) => clean(cut(load(name), seconds))
+    const knock = (sound, under) => mix({ sound }, { sound: under, gain: 0.4 })
+    const place = knock(tap.e, body('impactWood_light_004.ogg'))
+    const place2 = knock(tap.b, body('impactWood_light_001.ogg'))
+    const clack = knock(tap.bright, body('impactWood_light_000.ogg'))
+    const land = knock(tap.a, body('impactWood_light_002.ogg'))
+    const tick = knock(tap.c, body('impactWood_light_000.ogg'))
+    const tock = knock(tap.d, body('impactWood_light_003.ogg'))
+    // Đặt mạnh tay: hai cú chạm chồng khít nhau (một cú phát chậm lại cho nặng) trên tiếng gỗ trầm hơn.
+    const hard = knock(mix({ sound: tap.bright }, { sound: speed(tap.e, 0.9), gain: 0.8 }), body('impactWood_medium_002.ogg', 0.3))
+    // Chuỗi cú gõ: [tiếng, lúc (giây), độ to, tốc độ phát].
+    const seq = (...steps) => mix(...steps.map(([sound, at = 0, gain = 1, rate = 1]) => ({ sound: rate === 1 ? sound : speed(sound, rate), at, gain })))
+    const sounds = {
       move: place,
-      capture: limit(
-        mix(
-          { sound: knock('impactWood_light_002.ogg', 1.7) },
-          { sound: clack, gain: 0.6 },
-          { sound: knock('impactWood_medium_000.ogg', 1.25), at: 0.02, gain: 0.7 },
-          { sound: board, at: 0.02, gain: 0.2 },
-        ),
-        6,
-        0.01,
-      ),
-      castle: mix({ sound: place }, { sound: knock('impactWood_light_000.ogg', 1.45), at: 0.15, gain: 0.85 }, { sound: board, at: 0.15, gain: 0.15 }),
-      check: mix({ sound: marimba('E6', 0.7) }, { sound: marimba('E6', 0.6), at: 0.11, gain: 0.7 }),
-      promote: arpeggio((n) => marimba(n, 0.7), ['G5', 'B5', 'D6', 'G6'], 0.055),
-      end: mix(
-        { sound: arpeggio((n) => marimba(n, 1.2), ['C5', 'E5', 'G5', 'C6'], 0.11, 1.1) },
-        { sound: bell('C7', 1.2), at: 0.33, gain: 0.12 },
-      ),
-      draw: mix(
-        { sound: arpeggio((n) => marimba(n, 1), ['E5', 'C5'], 0.17) },
-        { sound: bell('E6', 0.8), gain: 0.25 },
-        { sound: bell('C6', 0.9), at: 0.17, gain: 0.25 },
-      ),
-      lowTime: mix(...[0, 0.2, 0.4, 0.6].map((at, i) => ({ sound: woodblock(i % 2 ? 1050 : 1400), at, gain: 1 - i * 0.12 }))),
-      start: arpeggio((n) => marimba(n, 0.9), ['C5', 'G5'], 0.12),
+      // Hai quân va nhau rồi quân ăn đáp xuống bàn.
+      capture: seq([clack, 0, 1], [land, 0.025, 0.85]),
+      castle: seq([place, 0, 1], [place2, 0.14, 0.85]),
+      // Web phát tiếng báo chiếu ngay sau tiếng quân: gõ thêm hai tiếng "cộc cộc".
+      check: seq([clack, 0.09, 1], [clack, 0.16, 0.8, 1.04]),
+      // Hai tiếng gõ, thấp rồi cao.
+      promote: seq([place, 0.08, 0.9, 0.86], [clack, 0.2, 1, 1.18]),
+      // Vua đổ xuống bàn rồi nảy vài lần, mỗi lần thấp và nhanh hơn.
+      end: seq([hard, 0, 1], [clack, 0.15, 0.42], [place2, 0.258, 0.27], [tick, 0.336, 0.17], [tock, 0.392, 0.11], [tick, 0.432, 0.07]),
+      // Hai tiếng gõ nhẹ, đều nhau.
+      draw: seq([place, 0, 0.85, 0.94], [place2, 0.26, 0.85, 0.94]),
+      // "Tốc tốc" như đồng hồ gỗ.
+      lowTime: seq(...[0, 0.18, 0.36, 0.54].map((at, i) => [i % 2 ? tock : tick, at, 1 - i * 0.1, i % 2 ? 1 : 1.12])),
+      // Tiếng xếp quân lên bàn.
+      start: seq([land, 0, 0.6, 1.05], [tick, 0.065, 0.45, 1.1], [tock, 0.15, 0.75, 0.98], [place2, 0.2, 0.5, 1.04], [clack, 0.29, 0.4, 1.12], [place, 0.36, 0.85]),
     }
+    return Object.fromEntries(Object.entries(sounds).map(([event, sound]) => [event, softenPeak(sound, LEVEL[event])]))
   },
 
   // 8-bit: tiếng máy chơi game đời cũ (kiểu NES), vui nhộn.

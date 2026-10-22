@@ -6,7 +6,8 @@ không bắt buộc ghi công (dự án vẫn ghi công cho đàng hoàng).
 
 | File | Bộ tiếng gốc |
 | --- | --- |
-| `impactWood_light_000.ogg`, `impactWood_light_002.ogg`, `impactWood_light_004.ogg`, `impactWood_medium_000.ogg` | [Impact Sounds](https://kenney.nl/assets/impact-sounds) |
-| `chips-collide-1.ogg` | [Casino Audio](https://kenney.nl/assets/casino-audio) |
+| `impactWood_light_000.ogg` … `impactWood_light_004.ogg`, `impactWood_medium_002.ogg` (gõ khối gỗ rỗng) | [Impact Sounds](https://kenney.nl/assets/impact-sounds) |
+| `die-throw-1.ogg` … `die-throw-4.ogg` (xúc xắc rơi xuống bàn, nảy vài lần) | [Casino Audio](https://kenney.nl/assets/casino-audio) |
 
-`tools/sounds/make-sounds.mjs` đọc các file này, chỉnh lại cho giống tiếng quân cờ rồi ghi ra `src/sounds/wood/`.
+`tools/sounds/make-sounds.mjs` cắt riêng từng cú chạm mặt bàn trong các bản thu xúc xắc, đặt chồng lên tiếng gõ
+gỗ rỗng (để nguyên cao độ gốc) cho giống quân cờ đặt xuống bàn, rồi ghi ra `src/sounds/wood/`.
