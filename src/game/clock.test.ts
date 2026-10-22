@@ -25,6 +25,15 @@ describe('đồng hồ chạy', () => {
     expect(flagTime(clock, 'b')).toBe(40_000 + 172_000)
   })
 
+  it('chơi online: thời gian nằm trên đường truyền được trả lại, nhưng không trả quá thời gian đã nghĩ', () => {
+    let clock = recordMove(newClock(BLITZ), 'w', 0)
+    clock = recordMove(clock, 'b', 10_000, 300) // Đen nghĩ 9,7 giây, mạng mất 0,3 giây
+    expect(lastTimes(clock)).toEqual({ w: 180_000, b: 172_300 })
+    clock = recordMove(clock, 'w', 10_100, 500) // đi trước: tới nơi sau 0,1 giây, không được cộng thêm
+    expect(lastTimes(clock)).toEqual({ w: 182_000, b: 172_300 })
+    expect(flagTime(clock, 'b')).toBe(10_100 + 172_300)
+  })
+
   it('đi lại thì đồng hồ quay về như trước nước đó và chạy tiếp từ bây giờ', () => {
     let clock = recordMove(newClock(BLITZ), 'w', 0)
     clock = recordMove(clock, 'b', 10_000)

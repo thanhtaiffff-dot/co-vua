@@ -76,13 +76,13 @@ export function flagTime(clock: ClockState, turn: Color): number | null {
 
 // Ghi lại giờ sau khi bên `mover` đi một nước lúc `now`.
 // Nước đầu của Trắng không bị tính giờ: đồng hồ bắt đầu chạy từ lúc đó (giờ của Đen chạy trước).
-export function recordMove(clock: ClockState, mover: Color, now: number): ClockState {
+// Chơi online thì `credit` là phần thời gian nước đi nằm trên đường truyền, được trả lại cho người đi.
+export function recordMove(clock: ClockState, mover: Color, now: number, credit = 0): ClockState {
   const last = lastTimes(clock)
   if (!clock.control || !last) return clock
   const started = clock.times.length > 0
-  const next = started
-    ? { ...last, [mover]: last[mover] - (now - clock.turnStart) + clock.control.increment * 1000 }
-    : last
+  const spent = Math.max(0, now - clock.turnStart - credit)
+  const next = started ? { ...last, [mover]: last[mover] - spent + clock.control.increment * 1000 } : last
   return { ...clock, times: [...clock.times, next], turnStart: now }
 }
 
