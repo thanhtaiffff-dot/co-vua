@@ -5,10 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "wrangler dev --port 8787",
     "build": "tsc -b && vite build",
     "build:single": "tsc -b && vite build --mode single",
+    "build:demo": "tsc -b && vite build --mode demo",
     "sounds": "node tools/sounds/make-sounds.mjs",
     "test": "vitest run",
+    "test:server": "node tools/online/check-server.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

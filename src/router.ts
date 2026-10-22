@@ -2,11 +2,12 @@
 //   /            chơi chung một máy
 //   /online      tạo phòng chơi online
 //   /phong/<mã>  phòng chơi online (link gửi cho bạn bè)
-// Bản chơi thử chạy trong khung của Claude không đổi được địa chỉ, nên nhớ trang đang mở trong bộ nhớ.
+// Bản gộp một file (mở thẳng từ máy, hay bản chơi thử trong khung của Claude) không đổi được địa chỉ,
+// nên nhớ trang đang mở trong bộ nhớ.
 import { useSyncExternalStore } from 'react'
 
-const inMemory = import.meta.env.MODE === 'demo'
-let memoryPath = '/online'
+const inMemory = import.meta.env.MODE === 'single' || import.meta.env.MODE === 'demo'
+let memoryPath = import.meta.env.MODE === 'demo' ? '/online' : '/'
 const listeners = new Set<() => void>()
 
 function current(): string {

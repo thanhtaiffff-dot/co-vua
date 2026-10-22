@@ -40,19 +40,25 @@
 }
 
 /* ---------- Trang tạo phòng, chờ bạn bè, lời mời ---------- */
-/* Điện thoại: thẻ lên trước, bàn cờ trang trí xuống dưới */
+/* Bàn cờ bên cạnh chỉ để trang trí (quay về phía màu mình sẽ cầm): điện thoại thì ẩn cho trang gọn */
+.lobby__board {
+  display: none;
+}
+
 .lobby .side {
-  order: -1;
+  width: 100%;
+  max-width: 480px;
+  justify-self: center;
 }
 
 @media (min-width: 900px) {
-  .lobby .side {
-    order: 0;
+  .lobby__board {
+    display: flex;
   }
-}
 
-.lobby__board {
-  opacity: 0.92;
+  .lobby .side {
+    max-width: none;
+  }
 }
 
 .card {
@@ -276,6 +282,7 @@
 }
 
 .facts dt {
+  flex: none;
   color: var(--muted);
   font-size: 0.85rem;
 }

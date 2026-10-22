@@ -5,8 +5,9 @@ import { demoBackend } from './online/demo'
 import { CreatePage, RoomPage } from './online/OnlinePages'
 import { usePath } from './router'
 
-// Bản chơi thử (`npm run build:demo`) dùng máy chủ giả ngay trong trình duyệt; bản thật nói chuyện với Cloudflare.
-const backend = import.meta.env.MODE === 'demo' ? demoBackend : serverBackend
+// Bản gộp một file (`npm run build:single`, `build:demo`) không có máy chủ, nên dùng máy chủ giả ngay trong trình duyệt;
+// bản thật nói chuyện với máy chủ trên Cloudflare.
+const backend = import.meta.env.MODE === 'single' || import.meta.env.MODE === 'demo' ? demoBackend : serverBackend
 
 export function Root() {
   const path = usePath()
