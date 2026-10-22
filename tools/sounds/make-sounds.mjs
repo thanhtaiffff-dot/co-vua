@@ -1,6 +1,9 @@
 // Tạo các file âm thanh (MP3) cho bàn cờ, ghi vào src/sounds/<tên bộ>/.
-// Bộ Gỗ là tiếng gõ thu thật của Kenney (CC0, trong tools/sounds/kenney/); bộ 8-bit và Bong bóng do chính
-// file này tự tạo bằng toán, nên muốn sửa tiếng thì sửa số ở đây rồi chạy lại.
+// Các bộ Gỗ, Kim loại (Thép, Đồng, Gang) và Thủy tinh (Pha lê, Bi ve, Kính dày) là tiếng thu thật của Kenney
+// (CC0, trong tools/sounds/kenney/). Các bộ Đá (Cẩm thạch, Sỏi, Bàn đá), 8-bit và Bong bóng do chính file này
+// tự tạo bằng toán; riêng Bàn đá lót thêm tiếng chạm nền xi măng của Kenney. Muốn sửa tiếng thì sửa số ở đây rồi
+// chạy lại.
+// Mỗi bộ chỉ có tiếng của đúng chất liệu đó (không chen chuông hay nhạc cụ khác), riêng 8-bit là tiếng máy game.
 //
 // Cách chạy (cần cài ffmpeg): node tools/sounds/make-sounds.mjs [tên bộ ...]
 // Không ghi tên bộ thì tạo hết các bộ.
@@ -268,13 +271,13 @@ function chipNoise(seconds, decay, clock = 16000) {
   return x
 }
 
-// Bong bóng: tiếng "bóp" có cao độ vút lên, như bọt nước vỡ.
-function bubble(from, to, decay = 0.03, seconds = 0.12) {
+// Bong bóng: tiếng "bóp" có cao độ vút lên, như bọt nước vỡ. Bọt to thì vút lên chậm hơn (`glide` lớn hơn).
+function bubble(from, to, decay = 0.03, seconds = 0.12, glide = 0.025) {
   const x = samples(seconds)
   let phase = 0
   for (let i = 0; i < x.length; i++) {
     const t = i / SR
-    const f = from + (to - from) * (1 - Math.exp(-t / 0.025))
+    const f = from + (to - from) * (1 - Math.exp(-t / glide))
     phase += (2 * Math.PI * f) / SR
     const edge = Math.min(1, i / (0.001 * SR))
     x[i] = Math.sin(phase) * Math.exp(-t / decay) * edge
@@ -286,7 +289,62 @@ function arpeggio(make, names, step, last = 1) {
   return mix(...names.map((name, i) => ({ sound: make(name), at: i * step, gain: i === names.length - 1 ? last : 0.85 })))
 }
 
-// ---------- Ba bộ tiếng ----------
+// Một cú chạm đá, dựng theo cách vật rắn rung thật: viên đá có nhiều tần số riêng (từ `low` trở lên, càng cao càng
+// dày), cú chạm cứng và rất nhanh (`contact` giây) làm chúng cùng rung. Tần số càng cao tắt càng nhanh: thời gian
+// tắt = 1 / (π × tần số × `damp`); `damp` lớn thì tiếng khô, nhỏ thì ngân. `grit`: tiếng sạn lúc mặt đá nhám cọ nhau.
+// Mỗi `seed` cho một viên đá hơi khác, chạy lại vẫn ra đúng tiếng cũ.
+function stoneHit({ low, high = 7500, damp = 0.004, tilt = 0.7, contact = 0.0004, grit = 0.15, seed = 1, seconds = 0.15 }) {
+  const rand = random(seed)
+  const n = Math.max(3, Math.round(contact * SR))
+  const exc = new Float32Array(n)
+  for (let i = 0; i < n; i++) exc[i] = Math.sin((Math.PI * (i + 0.5)) / n) * (0.85 + 0.3 * rand())
+  const x = samples(seconds)
+  for (let f = low * (0.97 + 0.06 * rand()); f < high; f *= 1.16 + 0.32 * rand()) {
+    const amp = (low / f) ** tilt * (0.35 + 0.65 * rand())
+    const decay = 1 / (Math.PI * f * damp)
+    // Bộ cộng hưởng hai cực: rung ở tần số f, tắt dần sau `decay` giây.
+    const r = Math.exp(-1 / (decay * SR))
+    const w = (2 * Math.PI * f) / SR
+    const a1 = -2 * r * Math.cos(w)
+    const a2 = r * r
+    let y1 = 0
+    let y2 = 0
+    const end = Math.min(x.length, Math.round(decay * 7 * SR) + n)
+    for (let i = 0; i < end; i++) {
+      const y = (i < n ? exc[i] : 0) - a1 * y1 - a2 * y2
+      y2 = y1
+      y1 = y
+      x[i] += amp * y * Math.sin(w)
+    }
+  }
+  if (grit) {
+    const g = samples(0.006)
+    for (let i = 0; i < g.length; i++) g[i] = (rand() * 2 - 1) * Math.exp(-i / SR / 0.0012)
+    const hp = filter(g, 'highpass', 2500)
+    for (let i = 0; i < hp.length; i++) x[i] += grit * hp[i]
+  }
+  return fadeOut(filter(x, 'highpass', 80), 0.01)
+}
+
+// Chuỗi cú gõ: [tiếng, lúc (giây), độ to, tốc độ phát].
+const seq = (...steps) => mix(...steps.map(([sound, at = 0, gain = 1, rate = 1]) => ({ sound: rate === 1 ? sound : speed(sound, rate), at, gain })))
+
+// Lấy một tiếng thu, đổi tốc độ (dưới 1: trầm và ngân lâu hơn), cắt còn `seconds` giây, bỏ phần ù dưới `hz`.
+const take = (name, seconds, rate = 1, hz = 120) => filter(cut(rate === 1 ? load(name) : speed(load(name), rate), seconds), 'highpass', hz)
+
+// Tên file tiếng thu của Kenney (tools/sounds/kenney/).
+const metal = (i) => `impactMetal_medium_00${i}.ogg`
+const heavyMetal = (i) => `impactMetal_heavy_00${i}.ogg`
+const tin = (i) => `impactTin_medium_00${i}.ogg`
+const glass = (i) => `impactGlass_light_00${i}.ogg`
+const glassRing = (i) => `impactGlass_medium_00${i}.ogg`
+// Tiếng thủy tinh bỏ phần ù dưới 150 Hz.
+const pane = (name, seconds, rate) => take(name, seconds, rate, 150)
+
+// Tiếng gõ thật có đỉnh nhọn lúc chạm: nén bớt cho mọi tiếng của bộ đạt đủ mức to (xem softenPeak).
+const soften = (sounds) => Object.fromEntries(Object.entries(sounds).map(([event, sound]) => [event, softenPeak(sound, LEVEL[event])]))
+
+// ---------- Các bộ tiếng ----------
 
 // Mức to cho từng loại tiếng (dB): ăn quân to hơn đi thường một chút; tiếng báo (chiếu, hết ván...) nổi hơn tiếng đi quân
 // cỡ 4–5 dB như trên lichess, đủ chú ý mà không giật mình. Chiếu và phong cấp chỉ là phần "điểm thêm":
@@ -318,8 +376,6 @@ const SETS = {
     const tock = knock(tap.d, body('impactWood_light_003.ogg'))
     // Đặt mạnh tay: hai cú chạm chồng khít nhau (một cú phát chậm lại cho nặng) trên tiếng gỗ trầm hơn.
     const hard = knock(mix({ sound: tap.bright }, { sound: speed(tap.e, 0.9), gain: 0.8 }), body('impactWood_medium_002.ogg', 0.3))
-    // Chuỗi cú gõ: [tiếng, lúc (giây), độ to, tốc độ phát].
-    const seq = (...steps) => mix(...steps.map(([sound, at = 0, gain = 1, rate = 1]) => ({ sound: rate === 1 ? sound : speed(sound, rate), at, gain })))
     const sounds = {
       move: place,
       // Hai quân va nhau rồi quân ăn đáp xuống bàn.
@@ -338,7 +394,7 @@ const SETS = {
       // Tiếng xếp quân lên bàn.
       start: seq([land, 0, 0.6, 1.05], [tick, 0.065, 0.45, 1.1], [tock, 0.15, 0.75, 0.98], [place2, 0.2, 0.5, 1.04], [clack, 0.29, 0.4, 1.12], [place, 0.36, 0.85]),
     }
-    return Object.fromEntries(Object.entries(sounds).map(([event, sound]) => [event, softenPeak(sound, LEVEL[event])]))
+    return soften(sounds)
   },
 
   // 8-bit: tiếng máy chơi game đời cũ (kiểu NES), vui nhộn.
@@ -366,10 +422,11 @@ const SETS = {
     }
   },
 
-  // Bong bóng: tiếng "bóp" tròn trịa, nhẹ nhàng, kiểu ứng dụng hiện đại.
+  // Bong bóng: tiếng "bóp" tròn trịa, nhẹ nhàng, kiểu ứng dụng hiện đại. Mọi tiếng đều là bọt nước, không chuông.
   bubble() {
-    const ding = (name, seconds = 0.6) => tone(note(name), [[1, 1, 0.22], [2.01, 0.25, 0.08], [3.02, 0.06, 0.04]], seconds, 0.002)
     const pop = filter(noise(0.008, 0.0015, 7), 'bandpass', 2500, { q: 1.2 })
+    // Bọt to: trầm hơn, vút lên chậm hơn, tắt lâu hơn, kèm tiếng tách lúc vỡ.
+    const big = (from, to, decay = 0.06, seconds = 0.26) => mix({ sound: bubble(from, to, decay, seconds, 0.04) }, { sound: pop, gain: 0.2 })
     return {
       move: mix({ sound: bubble(520, 980) }, { sound: pop, gain: 0.15 }),
       capture: mix(
@@ -378,13 +435,287 @@ const SETS = {
         { sound: bubble(760, 1300, 0.025), at: 0.035, gain: 0.7 },
       ),
       castle: mix({ sound: bubble(480, 900) }, { sound: bubble(640, 1150), at: 0.11, gain: 0.9 }),
-      check: mix({ sound: ding('A6', 0.5) }, { sound: ding('E6', 0.5), at: 0.1, gain: 0.9 }),
+      // Chiếu: hai bọt nhỏ "bíp bíp" cao dần, nổi lên ngay sau tiếng quân.
+      check: seq([bubble(820, 1500, 0.022, 0.09), 0.07, 1], [bubble(980, 1800, 0.022, 0.09), 0.15, 0.95]),
       promote: mix(...[0, 1, 2, 3].map((i) => ({ sound: bubble(500 + i * 180, 950 + i * 300), at: i * 0.055, gain: 0.85 }))),
-      end: mix(...['C6', 'E6', 'G6', 'C7'].map((n, i) => ({ sound: ding(n, 0.9), at: i * 0.1, gain: i === 3 ? 0.9 : 0.7 }))),
-      draw: mix({ sound: ding('G6', 0.6), gain: 0.6 }, { sound: ding('C6', 0.7), at: 0.16, gain: 0.6 }),
+      // Hết ván: ba bọt thấp dần rồi một bọt to "bọp" khép lại.
+      end: seq([bubble(950, 1700, 0.022, 0.09), 0, 0.75], [bubble(780, 1400, 0.025, 0.1), 0.11, 0.8], [bubble(620, 1150, 0.03, 0.12), 0.22, 0.85], [big(420, 820), 0.36, 1]),
+      // Hòa: hai bọt vừa, giống hệt nhau.
+      draw: seq([bubble(560, 1020, 0.03, 0.12), 0, 1], [bubble(560, 1020, 0.03, 0.12), 0.24, 1]),
       lowTime: mix(...[0, 0.2, 0.4, 0.6].map((at, i) => ({ sound: bubble(1500, 1900, 0.012, 0.05), at, gain: 1 - i * 0.1 }))),
-      start: mix({ sound: bubble(450, 850) }, { sound: ding('E6', 0.6), at: 0.08, gain: 0.5 }),
+      // Ván mới: ba bọt nổi lên, bọt sau cao hơn bọt trước.
+      start: seq([bubble(460, 860), 0, 0.85], [bubble(560, 1040), 0.09, 0.9], [bubble(700, 1300, 0.025, 0.1), 0.18, 1]),
     }
+  },
+
+  // ----- Kim loại: tiếng gõ kim loại thu thật, cách gõ giống bộ Gỗ (đặt quân, va nhau, vua đổ nảy...) -----
+
+  // Thép: quân thép đặt lên mặt thép. Tiếng "cạch" gọn, sáng, tắt nhanh.
+  steel() {
+    const place = take(metal(4), 0.16)
+    const place2 = take(metal(2), 0.16)
+    const clack = take(metal(1), 0.18)
+    const land = take(metal(0), 0.22)
+    const tick = take(metal(2), 0.06, 1.1)
+    const tock = take(metal(4), 0.07, 0.96)
+    const hard = mix({ sound: take(metal(3), 0.3) }, { sound: take(metal(0), 0.3, 0.9), gain: 0.7 })
+    return soften({
+      move: place,
+      capture: seq([clack, 0, 1], [land, 0.025, 0.85]),
+      castle: seq([place, 0, 1], [place2, 0.14, 0.85]),
+      check: seq([clack, 0.09, 1], [clack, 0.16, 0.8, 1.04]),
+      promote: seq([place, 0.08, 0.9, 0.86], [clack, 0.2, 1, 1.18]),
+      end: seq([hard, 0, 1], [clack, 0.15, 0.42], [place2, 0.258, 0.27], [tick, 0.336, 0.17], [tock, 0.392, 0.11], [tick, 0.432, 0.07]),
+      draw: seq([place, 0, 0.85, 0.94], [place2, 0.26, 0.85, 0.94]),
+      lowTime: seq(...[0, 0.18, 0.36, 0.54].map((at, i) => [i % 2 ? tock : tick, at, 1 - i * 0.1, i % 2 ? 1 : 1.12])),
+      start: seq([land, 0, 0.6, 1.05], [tick, 0.065, 0.45, 1.1], [tock, 0.15, 0.75, 0.98], [place2, 0.2, 0.5, 1.04], [clack, 0.29, 0.4, 1.12], [place, 0.36, 0.85]),
+    })
+  },
+
+  // Đồng: quân đồng nặng, tiếng trầm và ngân ấm hơn thép (phát chậm lại). Hết ván: vua đổ rồi xoay tròn trên bàn
+  // như đồng xu, lách cách mau dần rồi lặng hẳn.
+  bronze() {
+    const R = 0.8
+    const place = take(metal(0), 0.34, R)
+    const place2 = take(metal(3), 0.34, R)
+    const clack = take(metal(1), 0.3, R * 1.06)
+    const land = take(metal(3), 0.4, R * 0.94)
+    const tick = take(metal(2), 0.09, R * 1.15)
+    const tock = take(metal(4), 0.1, R)
+    // Một cú chạm rất ngắn lúc vua xoay: lấy phần đầu tiếng gõ, tắt nhanh.
+    const rattle = (name, rate) => fadeOut(filter(speed(load(name), rate).slice(0, Math.round(0.05 * SR)), 'highpass', 120), 0.035)
+    const spin = []
+    let when = 0.13
+    let gap = 0.12
+    for (let k = 0; k < 14; k++) {
+      spin.push([rattle(metal([1, 2, 4][k % 3]), R * (1 + k * 0.012)), when, 0.5 * 0.9 ** k])
+      when += gap
+      gap *= 0.82
+    }
+    return soften({
+      move: place,
+      capture: seq([clack, 0, 1], [land, 0.03, 0.8]),
+      castle: seq([place, 0, 1], [place2, 0.15, 0.85]),
+      check: seq([clack, 0.09, 1], [clack, 0.17, 0.75, 1.05]),
+      promote: seq([place, 0.08, 0.9, 0.88], [clack, 0.21, 1, 1.15]),
+      end: seq([mix({ sound: land }, { sound: take(metal(0), 0.4, R * 0.85), gain: 0.6 }), 0, 1], ...spin),
+      draw: seq([place, 0, 0.85, 0.96], [place2, 0.28, 0.85, 0.96]),
+      lowTime: seq(...[0, 0.2, 0.4, 0.6].map((at, i) => [i % 2 ? tock : tick, at, 1 - i * 0.1])),
+      start: seq([land, 0, 0.55], [tick, 0.07, 0.45], [tock, 0.16, 0.7], [place2, 0.22, 0.5, 1.03], [clack, 0.31, 0.4, 1.08], [place, 0.39, 0.85]),
+    })
+  },
+
+  // Gang: quân gang đúc đặc, rất nặng. Tiếng "cộc" đục, trầm, gần như không ngân: tiếng kim loại nặng lót tiếng lon thiếc.
+  'cast-iron'() {
+    const R = 0.86
+    const heavy = (h, t, rate = R) => mix({ sound: take(heavyMetal(h), 0.16, rate) }, { sound: take(tin(t), 0.14, rate * 0.95), gain: 0.55 })
+    const place = heavy(4, 1)
+    const place2 = heavy(2, 4)
+    const clack = heavy(0, 2, R * 1.05)
+    const land = heavy(2, 3, R * 0.95)
+    const tick = take(heavyMetal(0), 0.06, R * 1.1)
+    const tock = take(tin(1), 0.07, R)
+    const hard = mix({ sound: heavy(0, 3, R * 0.9) }, { sound: heavy(4, 0, R * 0.82), gain: 0.7 })
+    return soften({
+      move: place,
+      capture: seq([clack, 0, 1], [land, 0.025, 0.85]),
+      castle: seq([place, 0, 1], [place2, 0.14, 0.85]),
+      check: seq([clack, 0.09, 1], [clack, 0.16, 0.8, 1.04]),
+      promote: seq([place, 0.08, 0.9, 0.88], [clack, 0.2, 1, 1.15]),
+      // Vua gang đổ "cộp", bập bênh lại một lần rồi nằm im.
+      end: seq([hard, 0, 1], [place2, 0.17, 0.4], [tock, 0.29, 0.18]),
+      draw: seq([place, 0, 0.85, 0.95], [place2, 0.26, 0.85, 0.95]),
+      lowTime: seq(...[0, 0.18, 0.36, 0.54].map((at, i) => [i % 2 ? tock : tick, at, 1 - i * 0.1])),
+      start: seq([land, 0, 0.6], [tick, 0.07, 0.45], [tock, 0.15, 0.7], [place2, 0.21, 0.5, 1.03], [clack, 0.3, 0.4, 1.06], [place, 0.37, 0.85]),
+    })
+  },
+
+  // ----- Thủy tinh: tiếng gõ thủy tinh thu thật -----
+
+  // Pha lê: quân pha lê đặt lên mặt kính. Tiếng "ting" trong, ngân nhẹ rồi tắt.
+  crystal() {
+    const R = 0.92
+    const place = pane(glass(2), 0.24, R)
+    const place2 = pane(glass(3), 0.24, R)
+    const clack = pane(glass(1), 0.26, R)
+    const land = pane(glassRing(2), 0.34, R)
+    const tick = pane(glass(1), 0.07, R * 1.08)
+    const tock = pane(glass(3), 0.08, R * 0.95)
+    const hard = mix({ sound: pane(glassRing(0), 0.4, R) }, { sound: pane(glass(1), 0.3, R * 0.9), gain: 0.6 })
+    return soften({
+      move: place,
+      capture: seq([clack, 0, 1], [land, 0.025, 0.8]),
+      castle: seq([place, 0, 1], [place2, 0.14, 0.85]),
+      check: seq([clack, 0.09, 1], [clack, 0.16, 0.8, 1.04]),
+      promote: seq([place, 0.08, 0.9, 0.88], [clack, 0.2, 1, 1.15]),
+      end: seq([hard, 0, 1], [clack, 0.15, 0.4], [place2, 0.258, 0.26], [tick, 0.336, 0.16], [tock, 0.392, 0.1], [tick, 0.432, 0.06]),
+      draw: seq([place, 0, 0.85, 0.95], [place2, 0.26, 0.85, 0.95]),
+      lowTime: seq(...[0, 0.18, 0.36, 0.54].map((at, i) => [i % 2 ? tock : tick, at, 1 - i * 0.1, i % 2 ? 1 : 1.08])),
+      start: seq([land, 0, 0.55], [tick, 0.065, 0.45, 1.06], [tock, 0.15, 0.7], [place2, 0.2, 0.5, 1.03], [clack, 0.29, 0.4, 1.08], [place, 0.36, 0.85]),
+    })
+  },
+
+  // Bi ve: quân là viên bi thủy tinh. Tiếng "tách" khô và ngắn, có cú nảy nhỏ. Hết ván: viên bi rơi, nảy mau dần
+  // tới khi nằm yên. Ván mới: rải một nắm bi lên bàn.
+  'glass-marbles'() {
+    // Chỉ lấy phần chạm, bỏ phần ngân, như hai viên bi va nhau.
+    const click = (name, rate = 1, seconds = 0.045) => {
+      const x = filter(speed(load(name), rate), 'highpass', 300)
+      return fadeOut(filter(x.slice(0, Math.round(seconds * SR)), 'lowpass', 7000), seconds * 0.7)
+    }
+    const a = click(glass(2), 0.95)
+    const b = click(glass(3), 0.95)
+    const c = click(glass(1), 1)
+    const d = click('glass_003.wav', 0.8, 0.04)
+    // Đặt bi xuống: chạm rồi nảy lên một chút xíu.
+    const drop = (main, small, gap = 0.032) => seq([main, 0, 1], [small, gap, 0.28, 1.05])
+    const place = drop(a, b)
+    const place2 = drop(b, a, 0.028)
+    // Hai viên bi va nhau "cách": hai cú chạm sát nhau.
+    const clash = seq([c, 0, 1], [d, 0.004, 0.6])
+    // Viên bi rơi nảy: mỗi lần nảy nhỏ hơn và sát hơn lần trước.
+    const bounce = (count, first, ratio, gain) => {
+      const steps = []
+      let when = 0
+      let gap = first
+      for (let k = 0; k < count; k++) {
+        steps.push([k % 2 ? b : a, when, gain * 0.72 ** k, 1 + k * 0.01])
+        when += gap
+        gap *= ratio
+      }
+      return seq(...steps)
+    }
+    const rand = random(41)
+    const handful = []
+    for (let k = 0; k < 13; k++) handful.push([[a, b, c, d][k % 4], 0.03 * k + 0.06 * rand() * (k / 12), 0.35 + 0.45 * rand(), 0.9 + 0.2 * rand()])
+    return soften({
+      move: place,
+      capture: seq([clash, 0, 1], [place, 0.05, 0.75]),
+      castle: seq([place, 0, 1], [place2, 0.14, 0.85]),
+      check: seq([c, 0.09, 1], [d, 0.155, 0.85]),
+      promote: seq([a, 0.08, 0.9, 0.85], [c, 0.19, 1, 1.18]),
+      end: seq([clash, 0, 1], [bounce(10, 0.17, 0.75, 0.9), 0.07, 1]),
+      draw: seq([place, 0, 0.85], [place2, 0.26, 0.85]),
+      lowTime: seq(...[0, 0.18, 0.36, 0.54].map((at, i) => [i % 2 ? b : c, at, 1 - i * 0.1, i % 2 ? 0.92 : 1.05])),
+      start: seq(...handful, [place, 0.48, 0.8]),
+    })
+  },
+
+  // Kính dày: quân và bàn bằng kính dày. Tiếng "cộp" trầm, tròn, ít ngân: nền là tiếng kính dày, bên trên một chút
+  // tiếng kính mỏng phát chậm lại và bỏ bớt phần cao.
+  'thick-glass'() {
+    const R = 0.8
+    const thick = (light, rate = R, top = 0.55) =>
+      mix({ sound: pane('impactGlass_heavy_002.ogg', 0.15, (rate / R) * 0.95) }, { sound: filter(pane(glass(light), 0.13, rate), 'lowpass', 1800), gain: top })
+    const place = thick(2)
+    const place2 = thick(3)
+    const clack = thick(1, R * 1.05, 0.7)
+    const land = thick(2, R * 0.92, 0.4)
+    const tick = filter(pane(glass(1), 0.05, R * 1.1), 'lowpass', 3000)
+    const tock = filter(pane(glass(3), 0.06, R), 'lowpass', 3000)
+    const hard = mix({ sound: thick(1, R * 0.88, 0.5) }, { sound: pane(glassRing(4), 0.22, R), gain: 0.35 })
+    return soften({
+      move: place,
+      capture: seq([clack, 0, 1], [land, 0.025, 0.85]),
+      castle: seq([place, 0, 1], [place2, 0.14, 0.85]),
+      check: seq([clack, 0.09, 1], [clack, 0.16, 0.8, 1.04]),
+      promote: seq([place, 0.08, 0.9, 0.88], [clack, 0.2, 1, 1.15]),
+      end: seq([hard, 0, 1], [place2, 0.16, 0.42], [tock, 0.27, 0.22], [tick, 0.335, 0.1]),
+      draw: seq([place, 0, 0.85, 0.95], [place2, 0.26, 0.85, 0.95]),
+      lowTime: seq(...[0, 0.18, 0.36, 0.54].map((at, i) => [i % 2 ? tock : tick, at, 1 - i * 0.1])),
+      start: seq([land, 0, 0.6], [tick, 0.07, 0.45], [tock, 0.15, 0.7], [place2, 0.21, 0.5, 1.03], [clack, 0.3, 0.4, 1.06], [place, 0.37, 0.85]),
+    })
+  },
+
+  // ----- Đá: không có bản thu đá gõ đá dùng được, nên tiếng chạm dựng bằng stoneHit() -----
+
+  // Cẩm thạch: quân đá mài nhẵn đặt lên bàn đá. Tiếng "cách" sắc, hơi ngân như sứ.
+  'polished-stone'() {
+    const piece = (seed, pitch = 1, ring = 1) =>
+      mix(
+        { sound: stoneHit({ seed, low: 1350 * pitch, damp: 0.0079 / ring, tilt: 0.6, seconds: 0.16 }) },
+        // Mặt bàn đá rung theo, trầm hơn và tắt nhanh hơn.
+        { sound: stoneHit({ seed: seed + 500, low: 420 * pitch, high: 2500, damp: 0.058, tilt: 0.9, grit: 0, seconds: 0.1 }), gain: 0.5 },
+      )
+    const place = piece(1)
+    const place2 = piece(2, 0.97)
+    const clack = piece(3, 1.08, 1.2)
+    const land = piece(4, 0.94)
+    const tick = piece(5, 1.12, 0.6)
+    const tock = piece(6, 0.92, 0.6)
+    const hard = mix({ sound: piece(7, 0.9, 1.3) }, { sound: piece(8, 0.84, 1.1), gain: 0.7 })
+    return soften({
+      move: place,
+      capture: seq([clack, 0, 1], [land, 0.025, 0.85]),
+      castle: seq([place, 0, 1], [place2, 0.14, 0.85]),
+      check: seq([clack, 0.09, 1], [piece(9, 1.1, 1.2), 0.16, 0.8]),
+      promote: seq([piece(10, 0.88), 0.08, 0.9], [piece(11, 1.18), 0.2, 1]),
+      end: seq([hard, 0, 1], [clack, 0.15, 0.42], [place2, 0.258, 0.27], [tick, 0.336, 0.17], [tock, 0.392, 0.11], [tick, 0.432, 0.07]),
+      draw: seq([piece(12, 0.95), 0, 0.85], [piece(13, 0.95), 0.26, 0.85]),
+      lowTime: seq(...[0, 0.18, 0.36, 0.54].map((at, i) => [i % 2 ? tock : tick, at, 1 - i * 0.1])),
+      start: seq([land, 0, 0.6], [tick, 0.065, 0.45], [tock, 0.15, 0.75], [place2, 0.2, 0.5], [clack, 0.29, 0.4], [place, 0.36, 0.85]),
+    })
+  },
+
+  // Sỏi: quân là những viên sỏi nhỏ. Tiếng "lách cách" khô và nhanh, mỗi lần đặt nảy lách cách vài cái.
+  // Hết ván: một nắm sỏi đổ xuống bàn, lách cách thưa dần.
+  pebbles() {
+    const pebble = (seed, pitch = 1) => stoneHit({ seed, low: 1500 * pitch, damp: 0.0163, tilt: 0.5, contact: 0.0003, grit: 0.25, seconds: 0.06 })
+    // Đặt viên sỏi xuống: chạm rồi nảy hai cái rất sát (đá cứng nên nảy nhanh).
+    const drop = (seed, pitch = 1) => seq(...[0, 0.013, 0.024].map((at, k) => [pebble(seed * 10 + k, pitch * (1 + k * 0.03)), at, [1, 0.35, 0.15][k]]))
+    const place = drop(1)
+    const place2 = drop(2, 0.95)
+    const clack = drop(3, 1.08)
+    const tick = pebble(40, 1.1)
+    const tock = pebble(41, 0.9)
+    const rand = random(77)
+    const pour = []
+    let when = 0
+    for (let k = 0; k < 18; k++) {
+      pour.push([pebble(100 + k, 0.85 + 0.35 * rand()), when, (0.4 + 0.6 * rand()) * 0.93 ** k])
+      when += 0.012 + 0.045 * rand() * (1 + k / 6)
+    }
+    return soften({
+      move: place,
+      capture: seq([clack, 0, 1], [drop(4, 0.92), 0.03, 0.8]),
+      castle: seq([place, 0, 1], [place2, 0.14, 0.85]),
+      check: seq([pebble(50, 1.05), 0.09, 1], [pebble(51, 1.12), 0.15, 0.85]),
+      promote: seq([drop(5, 0.85), 0.08, 0.9], [drop(6, 1.2), 0.2, 1]),
+      end: seq([clack, 0, 1], ...pour.map(([sound, at, gain]) => [sound, 0.06 + at, gain])),
+      draw: seq([drop(7), 0, 0.85], [drop(8), 0.26, 0.85]),
+      lowTime: seq(...[0, 0.18, 0.36, 0.54].map((at, i) => [i % 2 ? tock : tick, at, 1 - i * 0.1])),
+      start: seq([drop(9, 0.95), 0, 0.6], [drop(10, 1.05), 0.07, 0.45], [drop(11), 0.15, 0.7], [drop(12, 0.97), 0.21, 0.5], [drop(13, 1.08), 0.3, 0.4], [place, 0.37, 0.85]),
+    })
+  },
+
+  // Bàn đá: quân đá nặng đặt lên bàn đá ngoài công viên. Tiếng "cộc" đục, chắc, trầm; lót thêm tiếng chạm nền xi
+  // măng thu thật cho có sức nặng.
+  'stone-table'() {
+    const ground = (i) => filter(cut(load(`footstep_concrete_00${i}.ogg`), 0.09), 'highpass', 90)
+    const block = (seed, pitch = 1, i = 2) =>
+      mix(
+        { sound: stoneHit({ seed, low: 640 * pitch, high: 6000, damp: 0.025, tilt: 0.8, contact: 0.0008, grit: 0.25, seconds: 0.1 }) },
+        { sound: ground(i), gain: 0.55 },
+      )
+    const place = block(1, 1, 2)
+    const place2 = block(2, 0.95, 1)
+    const clack = block(3, 1.08, 3)
+    const land = block(4, 0.93, 4)
+    const tick = block(5, 1.12, 0)
+    const tock = block(6, 0.9, 1)
+    const hard = mix({ sound: block(7, 0.88, 2) }, { sound: block(8, 0.8, 4), gain: 0.75 })
+    return soften({
+      move: place,
+      capture: seq([clack, 0, 1], [land, 0.025, 0.85]),
+      castle: seq([place, 0, 1], [place2, 0.14, 0.85]),
+      check: seq([clack, 0.09, 1], [block(9, 1.1, 0), 0.16, 0.8]),
+      promote: seq([block(10, 0.86), 0.08, 0.9], [block(11, 1.16, 3), 0.2, 1]),
+      // Vua đá đổ "cộc", bập bênh lại một lần rồi nằm im.
+      end: seq([hard, 0, 1], [place2, 0.17, 0.4], [tock, 0.29, 0.18]),
+      draw: seq([block(12, 0.95), 0, 0.85], [block(13, 0.95, 1), 0.26, 0.85]),
+      lowTime: seq(...[0, 0.18, 0.36, 0.54].map((at, i) => [i % 2 ? tock : tick, at, 1 - i * 0.1])),
+      start: seq([land, 0, 0.6], [tick, 0.07, 0.45], [tock, 0.15, 0.7], [place2, 0.21, 0.5], [clack, 0.3, 0.4], [place, 0.37, 0.85]),
+    })
   },
 }
 

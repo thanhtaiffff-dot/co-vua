@@ -22,7 +22,7 @@ import {
   type GameStatus,
   type PlayedMove,
 } from './game/rules'
-import { playMove, playSound, previewSoundSet, selectSoundSet, setSoundEnabled, setupSound, SOUND_SETS, type SoundSet } from './sound'
+import { END_DELAY, playMove, playSound, selectSoundSet, setSoundEnabled, setupSound, SOUND_SETS, type SoundSet } from './sound'
 import { loadSaved, save } from './storage'
 import { useNow } from './useNow'
 
@@ -103,7 +103,7 @@ export default function App() {
     if (lastKind.current === 'playing' && status.kind !== 'playing') {
       const decisive = status.kind === 'checkmate' || status.kind === 'timeout'
       const byClock = status.kind === 'timeout' || status.kind === 'timeoutDraw'
-      playSound(decisive ? 'end' : 'draw', byClock ? 0 : 0.2)
+      playSound(decisive ? 'end' : 'draw', byClock ? 0 : END_DELAY)
     }
     lastKind.current = status.kind
   }, [status.kind])
@@ -210,12 +210,11 @@ export default function App() {
     if (on) playSound('move')
   }
 
-  // Chọn bộ tiếng thì bật tiếng (nếu đang tắt) và kêu thử bộ mới cho nghe.
+  // Chọn bộ tiếng thì bật tiếng luôn (nếu đang tắt). Bảng chọn tự cho nghe thử bộ mới.
   function pickSoundSet(set: SoundSet) {
     setSoundSet(set)
     setSoundOn(true)
     setSoundEnabled(true)
-    previewSoundSet(set)
   }
 
   const score = resultScore(status)
@@ -226,7 +225,7 @@ export default function App() {
         <h1 className="brand">Cờ vua</h1>
         <span className="badge">Bản thử · chơi chung một máy</span>
         <div className="sound-controls">
-          <SoundSetPicker value={soundSet} onChange={pickSoundSet} />
+          <SoundSetPicker value={soundSet} soundOn={soundOn} onChange={pickSoundSet} />
           <SoundToggle on={soundOn} onToggle={toggleSound} />
         </div>
       </header>
@@ -272,7 +271,7 @@ export default function App() {
           <MoveList sans={chess.history()} />
 
           <p className="credits">
-            Luật cờ: chess.js · Bàn cờ: chessground của lichess · Quân cờ: bộ cburnett của Colin M.L. Burnett (GPL) · Tiếng gỗ: Kenney (CC0)
+            Luật cờ: chess.js · Bàn cờ: chessground của lichess · Quân cờ: bộ cburnett của Colin M.L. Burnett (GPL) · Tiếng thu thật: Kenney (CC0)
           </p>
         </aside>
       </main>
