@@ -46,7 +46,13 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 
 ## Web lên mạng thế nào
 
-Web chạy trên Cloudflare Workers, gói miễn phí. Mỗi lần một Pull Request được Merge vào nhánh `main`, Cloudflare tự tải code về, chạy `npm run build` rồi đưa bản mới lên. Pull Request chưa Merge thì có link xem thử riêng, web chính không bị đụng tới.
+Web chạy trên Cloudflare Workers, gói miễn phí. Mỗi lần một Pull Request được Merge vào nhánh `main`, Cloudflare tự tải code về, chạy `npm run build` rồi đưa bản mới lên, mất khoảng 1–2 phút. Pull Request chưa Merge thì web chính không bị đụng tới. Muốn chơi thử trước khi Merge thì dùng bản một file (`npm run build:single`).
+
+Cloudflare chỉ biết có lần Merge mới khi ứng dụng **Cloudflare Workers and Pages** trên GitHub được quyền đọc kho `co-vua`. Nếu Merge xong vài phút mà web vẫn như cũ:
+
+1. Vào [github.com/settings/installations](https://github.com/settings/installations), bấm **Configure** cạnh Cloudflare Workers and Pages. Mục **Repository access** phải có `co-vua`; thiếu thì thêm vào rồi bấm **Save**.
+2. Trên Cloudflare, vào Workers & Pages → `chess` → **Settings** → **Builds**. Nếu có dòng "This project is disconnected from your Git account" nghĩa là bước 1 chưa xong.
+3. Sửa xong thì cần một lần Merge mới để Cloudflare dựng lại web.
 
 ## Lộ trình
 
