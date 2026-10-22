@@ -6,9 +6,8 @@ import { Board } from './components/Board'
 import { MoveList } from './components/MoveList'
 import { PlayerBar, type ClockFace } from './components/PlayerBar'
 import { PromotionPicker } from './components/PromotionPicker'
-import { SoundSetPicker } from './components/SoundSetPicker'
-import { SoundToggle } from './components/SoundToggle'
 import { TimeControlPicker } from './components/TimeControlPicker'
+import { TopBar } from './components/TopBar'
 import { describeControl, flagTime, lastTimes, lowTime, newClock, recordMove, restoreClock, undoMove, type ClockState } from './game/clock'
 import {
   describeMove,
@@ -22,7 +21,7 @@ import {
   type GameStatus,
   type PlayedMove,
 } from './game/rules'
-import { END_DELAY, playMove, playSound, selectSoundSet, setSoundEnabled, setupSound, SOUND_SETS, type SoundSet } from './sound'
+import { END_DELAY, playMove, playSound } from './sound'
 import { loadSaved, save } from './storage'
 import { useNow } from './useNow'
 
@@ -62,11 +61,6 @@ export default function App() {
   })
   const [clock, setClock] = useState<ClockState>(() => restoreClock(loadSaved<unknown>('clock', null), moves.length))
   const [autoFlip, setAutoFlip] = useState<boolean>(() => loadSaved('autoFlip', false))
-  const [soundOn, setSoundOn] = useState<boolean>(() => loadSaved('sound', true))
-  const [soundSet, setSoundSet] = useState<SoundSet>(() => {
-    const saved = loadSaved<unknown>('soundSet', 'wood')
-    return SOUND_SETS.find((set) => set === saved) ?? 'wood'
-  })
   const [orientation, setOrientation] = useState<'white' | 'black'>('white')
   const [promotion, setPromotion] = useState<{ from: Square; to: Square } | null>(null)
   const [confirmNew, setConfirmNew] = useState(false)
@@ -88,13 +82,6 @@ export default function App() {
   useEffect(() => save('moves', moves), [moves])
   useEffect(() => save('clock', clock), [clock])
   useEffect(() => save('autoFlip', autoFlip), [autoFlip])
-  useEffect(() => save('sound', soundOn), [soundOn])
-  useEffect(() => save('soundSet', soundSet), [soundSet])
-  useEffect(() => setSoundEnabled(soundOn), [soundOn])
-  useEffect(() => {
-    selectSoundSet(soundSet)
-  }, [soundSet])
-  useEffect(() => setupSound(), [])
 
   // Tiếng hết ván: kêu đúng lúc ván vừa kết thúc, không kêu lại khi tải lại trang. Hết ván vì một nước đi
   // (chiếu bí, hòa) thì chờ tiếng quân đặt xuống xong; hết giờ thì kêu ngay.
@@ -202,33 +189,11 @@ export default function App() {
     playSound('start')
   }
 
-  // Bật tiếng thì kêu thử một tiếng để biết là đã có tiếng.
-  function toggleSound() {
-    const on = !soundOn
-    setSoundOn(on)
-    setSoundEnabled(on)
-    if (on) playSound('move')
-  }
-
-  // Chọn bộ tiếng thì bật tiếng luôn (nếu đang tắt). Bảng chọn tự cho nghe thử bộ mới.
-  function pickSoundSet(set: SoundSet) {
-    setSoundSet(set)
-    setSoundOn(true)
-    setSoundEnabled(true)
-  }
-
   const score = resultScore(status)
 
   return (
     <div className="app">
-      <header className="topbar">
-        <h1 className="brand">Cờ vua</h1>
-        <span className="badge">Bản thử · chơi chung một máy</span>
-        <div className="sound-controls">
-          <SoundSetPicker value={soundSet} soundOn={soundOn} onChange={pickSoundSet} />
-          <SoundToggle on={soundOn} onToggle={toggleSound} />
-        </div>
-      </header>
+      <TopBar switchTo={{ path: '/online', label: 'Chơi online' }} />
 
       <main className="table">
         <section className="board-col">

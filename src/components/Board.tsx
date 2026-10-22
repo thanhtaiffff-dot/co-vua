@@ -7,7 +7,8 @@ import type { Key } from '@lichess-org/chessground/types'
 
 type Props = {
   config: Config
-  onMove: (from: Key, to: Key) => void
+  // `premove`: nước này là nước đi trước (đặt sẵn lúc đối thủ còn nghĩ), vừa được tự đi.
+  onMove: (from: Key, to: Key, premove: boolean) => void
 }
 
 export function Board({ config, onMove }: Props) {
@@ -30,7 +31,7 @@ export function Board({ config, onMove }: Props) {
       movable: {
         free: false,
         showDests: true,
-        events: { after: (from, to) => onMoveRef.current(from, to) },
+        events: { after: (from, to, meta) => onMoveRef.current(from, to, meta.premove) },
       },
     })
     api.current = board
@@ -45,7 +46,12 @@ export function Board({ config, onMove }: Props) {
   }, [])
 
   useEffect(() => {
-    api.current?.set(config)
+    const board = api.current
+    if (!board) return
+    board.set(config)
+    // Chơi online: vừa tới lượt mình mà có nước đi trước đang chờ thì đi luôn, nếu nước đó vẫn hợp lệ
+    // (quân bị ăn mất, hay ô đích bị chắn thì nước đó tự huỷ). Giống chess.com và lichess.
+    if (config.premovable?.enabled && config.turnColor === config.movable?.color) board.playPremove()
   }, [config])
 
   return <div ref={el} className="board" />

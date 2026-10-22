@@ -107,16 +107,6 @@ body {
   text-wrap: balance;
 }
 
-.badge {
-  min-width: 0;
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  text-wrap: balance;
-  color: var(--muted);
-}
-
 /* Ô chọn bộ tiếng và nút loa, nằm bên phải đầu trang; điện thoại hẹp thì dòng chữ bên cạnh tự xuống hàng */
 .sound-controls {
   margin-left: auto;

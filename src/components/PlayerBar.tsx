@@ -11,15 +11,18 @@ type Props = {
   material: MaterialSide
   active: boolean
   clock: ClockFace | null
+  name?: string // chơi online: tên người chơi (để trống thì gọi theo màu quân)
+  away?: boolean // chơi online: người này đang mất kết nối
 }
 
-export function PlayerBar({ color, material, active, clock }: Props) {
+export function PlayerBar({ color, material, active, clock, name: playerName, away }: Props) {
   const opponent: Color = color === 'w' ? 'b' : 'w'
-  const name = color === 'w' ? 'Trắng' : 'Đen'
+  const name = playerName || (color === 'w' ? 'Trắng' : 'Đen')
   return (
     <div className={`player${active ? ' player--active' : ''}`}>
       <span className={`player__dot player__dot--${color}`} aria-hidden="true" />
       <span className="player__name">{name}</span>
+      {away && <span className="player__away">mất kết nối</span>}
       <span className="cg-wrap player__captured" aria-label="Quân hơn đối thủ">
         {material.pieces.map((type, i) => (
           <Piece key={i} type={type} color={opponent} />

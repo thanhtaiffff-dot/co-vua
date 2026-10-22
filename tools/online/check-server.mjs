@@ -9,7 +9,7 @@ function fail(message) {
   process.exit(1)
 }
 
-function player(id, token) {
+function player(id) {
   const ws = new WebSocket(`${wsBase}/api/rooms/${id}/ws`)
   const states = []
   const waiters = []
@@ -59,12 +59,12 @@ console.log('Tạo phòng', id)
 const page = await fetch(`${base}/phong/${id}`, { headers: { Accept: 'text/html', 'Sec-Fetch-Mode': 'navigate' } })
 if (!(await page.text()).includes('<div id="root">')) fail('mở link phòng không ra trang web')
 
-const host = player(id, hostToken)
+const host = player(id)
 await host.send({ t: 'hello', token: hostToken })
 const waiting = await host.until((m) => m.t === 'state', 'chủ phòng nhận tình hình')
 if (waiting.room.role !== 'host' || waiting.room.game !== null) fail('chủ phòng thấy sai: ' + JSON.stringify(waiting))
 
-const guest = player(id, guestToken)
+const guest = player(id)
 await guest.send({ t: 'hello', token: guestToken })
 const invite = await guest.until((m) => m.t === 'state', 'bạn bè thấy lời mời')
 if (invite.room.role !== 'visitor' || invite.room.host.name !== 'Tài') fail('bạn bè thấy sai: ' + JSON.stringify(invite))
@@ -108,7 +108,7 @@ const guestColor = second.room.game.you === 'w' ? 'b' : 'w'
 await host.until((m) => m.room?.game?.number === 2 && !m.room.game.players[guestColor].online, 'thấy bạn bè rời phòng')
 console.log('Bạn bè rời phòng: chủ phòng thấy ngay')
 
-const ghost = player('abcdefgh', hostToken)
+const ghost = player('abcdefgh')
 const missing = await ghost.until((m) => m.t === 'error', 'phòng không tồn tại')
 if (missing.code !== 'not-found') fail('phòng không có mà không báo')
 console.log('Phòng không tồn tại: báo đúng')
