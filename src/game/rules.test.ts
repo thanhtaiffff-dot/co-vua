@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import { canCheckmate, gameStatus, isPromotion, legalDests, materialDiff, replay, resultScore, timeoutStatus } from './rules'
+import { canCheckmate, describeMove, gameStatus, isPromotion, legalDests, materialDiff, replay, resultScore, timeoutStatus } from './rules'
 
 describe('nước đi hợp lệ', () => {
   it('thế cờ ban đầu có 20 nước, từ 10 quân', () => {
@@ -113,5 +113,50 @@ describe('hết giờ', () => {
     expect(can('4k3/4p3/8/8/8/8/8/4KB2 w - - 0 1')).toBe(true) // Tượng, Đen còn tốt để tự chắn
     expect(can('4kb2/8/8/8/8/8/8/4KB2 w - - 0 1')).toBe(true) // Tượng gặp Tượng khác màu ô
     expect(can('4k1b1/8/8/8/8/8/8/4KB2 w - - 0 1')).toBe(false) // Tượng gặp Tượng cùng màu ô
+  })
+})
+
+describe('một nước đi gây ra gì (để chọn tiếng)', () => {
+  const none = { capture: false, castle: false, promotion: false, check: false, mate: false }
+
+  it('nước thường không có gì đặc biệt', () => {
+    expect(describeMove(new Chess(), { from: 'e2', to: 'e4' })).toEqual(none)
+  })
+
+  it('ăn quân, kể cả bắt tốt qua đường', () => {
+    const chess = replay([
+      { from: 'e2', to: 'e4' },
+      { from: 'd7', to: 'd5' },
+    ])
+    expect(describeMove(chess, { from: 'e4', to: 'd5' })).toEqual({ ...none, capture: true })
+    const enPassant = new Chess('4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2')
+    expect(describeMove(enPassant, { from: 'e5', to: 'd6' })).toEqual({ ...none, capture: true })
+  })
+
+  it('nhập thành cánh vua và cánh hậu', () => {
+    const chess = new Chess('r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1')
+    expect(describeMove(chess, { from: 'e1', to: 'g1' })).toEqual({ ...none, castle: true })
+    expect(describeMove(chess, { from: 'e1', to: 'c1' })).toEqual({ ...none, castle: true })
+  })
+
+  it('chiếu và chiếu bí', () => {
+    const check = replay([
+      { from: 'e2', to: 'e4' },
+      { from: 'f7', to: 'f6' },
+    ])
+    expect(describeMove(check, { from: 'd1', to: 'h5' })).toEqual({ ...none, check: true })
+    const mate = replay([
+      { from: 'f2', to: 'f3' },
+      { from: 'e7', to: 'e5' },
+      { from: 'g2', to: 'g4' },
+    ])
+    expect(describeMove(mate, { from: 'd8', to: 'h4' })).toEqual({ ...none, check: true, mate: true })
+  })
+
+  it('phong cấp (Hậu mới chiếu luôn vua Đen), ván đang chơi không bị đụng tới', () => {
+    const fen = '8/P7/8/8/8/8/8/k6K w - - 0 1'
+    const chess = new Chess(fen)
+    expect(describeMove(chess, { from: 'a7', to: 'a8', promotion: 'q' })).toEqual({ ...none, promotion: true, check: true })
+    expect(chess.fen()).toBe(fen)
   })
 })

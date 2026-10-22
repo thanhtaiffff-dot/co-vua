@@ -11,6 +11,9 @@ export type GameStatus =
 
 export type MaterialSide = { pieces: PieceSymbol[]; score: number }
 
+// Những gì một nước đi gây ra, để chọn tiếng cho đúng.
+export type MoveFacts = { capture: boolean; castle: boolean; promotion: boolean; check: boolean; mate: boolean }
+
 const VALUES: Record<PieceSymbol, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 }
 const MATERIAL_ORDER: PieceSymbol[] = ['q', 'r', 'b', 'n', 'p']
 
@@ -34,6 +37,20 @@ export function legalDests(chess: Chess): Map<Square, Square[]> {
 
 export function isPromotion(chess: Chess, from: Square, to: Square): boolean {
   return chess.moves({ square: from, verbose: true }).some((m) => m.to === to && m.promotion)
+}
+
+// Thử đi nước `move` trên một bàn chép lại (ván đang chơi không bị đụng tới) để biết nước đó
+// có ăn quân không (kể cả bắt tốt qua đường), có nhập thành, phong cấp, chiếu hay chiếu bí không.
+export function describeMove(chess: Chess, move: PlayedMove): MoveFacts {
+  const copy = new Chess(chess.fen())
+  const played = copy.move(move)
+  return {
+    capture: played.captured !== undefined,
+    castle: played.isKingsideCastle() || played.isQueensideCastle(),
+    promotion: played.isPromotion(),
+    check: copy.inCheck(),
+    mate: copy.isCheckmate(),
+  }
 }
 
 // Ván hòa được xử tự động, không cần người chơi bấm đòi hòa.
