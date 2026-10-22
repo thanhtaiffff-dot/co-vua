@@ -252,7 +252,6 @@ function RoomFacts({ room, you }: { room: RoomView; you: boolean }) {
 function Invite({ room, send, ready }: { room: RoomView; send: (name: string) => void; ready: boolean }) {
   const [name, setName] = useState(myName)
   const [sent, setSent] = useState(false)
-  const host = room.host.name || 'Bạn bè'
   const side: Color = room.hostColor === 'w' ? 'b' : 'w'
 
   function join() {
@@ -264,7 +263,7 @@ function Invite({ room, send, ready }: { room: RoomView; send: (name: string) =>
   return (
     <Lobby side={side}>
       <div className="card">
-        <h2 className="card__title">{host} mời bạn chơi cờ</h2>
+        <h2 className="card__title">{room.host.name ? `${room.host.name} mời bạn chơi cờ` : 'Bạn được mời chơi cờ'}</h2>
         <p className="card__text">Bấm "Vào chơi" là ván bắt đầu ngay.</p>
         <NameField value={name} onChange={setName} />
         <button type="button" className="btn btn--primary btn--big" onClick={join} disabled={!ready || sent}>
