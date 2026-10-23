@@ -28,3 +28,8 @@ dist-demo
 # Cloudflare
 .wrangler
 .dev.vars*
+
+# Xưởng chụp chủ đề: ảnh chụp tạm và danh sách việc chụp (tạo lại được)
+tools/themes/out
+tools/themes/jobs-*.json
+__pycache__

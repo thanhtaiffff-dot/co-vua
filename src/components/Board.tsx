@@ -4,6 +4,7 @@ import { Chessground } from '@lichess-org/chessground'
 import type { Api } from '@lichess-org/chessground/api'
 import type { Config } from '@lichess-org/chessground/config'
 import type { Key } from '@lichess-org/chessground/types'
+import { useShown3d } from '../theme'
 
 type Props = {
   config: Config
@@ -15,6 +16,7 @@ export function Board({ config, onMove }: Props) {
   const el = useRef<HTMLDivElement>(null)
   const api = useRef<Api | null>(null)
   const onMoveRef = useRef(onMove)
+  const threeD = useShown3d()
 
   useEffect(() => {
     onMoveRef.current = onMove
@@ -44,6 +46,15 @@ export function Board({ config, onMove }: Props) {
       api.current = null
     }
   }, [])
+
+  // Quân 3D nhô lên che bớt ô phía sau, nên quân hàng gần người xem phải vẽ đè lên quân hàng xa. Bật, tắt kiểu đó thì
+  // vẽ lại cả bàn cho thứ tự áp vào mọi quân.
+  useEffect(() => {
+    const board = api.current
+    if (!board || board.state.addPieceZIndex === threeD) return
+    board.set({ addPieceZIndex: threeD })
+    board.redrawAll()
+  }, [threeD])
 
   useEffect(() => {
     const board = api.current

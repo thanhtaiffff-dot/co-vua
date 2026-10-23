@@ -7,7 +7,7 @@ export type SoundSetInfo = { id: SoundSet; name: string; about: string }
 export type SoundGroup = { name: string; sets: SoundSetInfo[] }
 
 export const SOUND_GROUPS: SoundGroup[] = [
-  { name: 'Mặc định', sets: [{ id: 'wood', name: 'Gỗ', about: 'Quân gỗ trên bàn gỗ: "cộc" ấm, tròn.' }] },
+  { name: 'Gỗ', sets: [{ id: 'wood', name: 'Gỗ', about: 'Quân gỗ trên bàn gỗ: "cộc" ấm, tròn.' }] },
   {
     name: 'Kim loại',
     sets: [
