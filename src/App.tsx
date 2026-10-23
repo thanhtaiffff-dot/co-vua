@@ -1,22 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Color, PieceSymbol, Square } from 'chess.js'
 import type { Config } from '@lichess-org/chessground/config'
 import type { Key } from '@lichess-org/chessground/types'
 import { Board } from './components/Board'
-import { MoveList } from './components/MoveList'
+import { MoveList, MoveStrip } from './components/MoveList'
 import { PlayerBar, type ClockFace } from './components/PlayerBar'
+import { PlayerNames, restoreNames, type Names } from './components/PlayerNames'
 import { PromotionPicker } from './components/PromotionPicker'
+import { ResultCard } from './components/ResultCard'
 import { TimeControlPicker } from './components/TimeControlPicker'
 import { TopBar } from './components/TopBar'
 import { describeControl, flagTime, lastTimes, lowTime, newClock, recordMove, restoreClock, undoMove, type ClockState } from './game/clock'
 import {
+  capturedPieces,
   describeMove,
   gameStatus,
   isPromotion,
   legalDests,
   materialDiff,
   replay,
-  resultScore,
   timeoutStatus,
   type GameStatus,
   type PlayedMove,
@@ -24,29 +26,14 @@ import {
 import { END_DELAY, playMove, playSound } from './sound'
 import { loadSaved, save } from './storage'
 import { useNow } from './useNow'
+import { useReview } from './useReview'
 
-const NAME: Record<Color, string> = { w: 'Trắng', b: 'Đen' }
+const COLOR_NAME: Record<Color, string> = { w: 'Trắng', b: 'Đen' }
 const SIDE: Record<Color, 'white' | 'black'> = { w: 'white', b: 'black' }
 
-function statusText(status: GameStatus): string {
-  switch (status.kind) {
-    case 'playing':
-      return status.check ? `${NAME[status.turn]} đang bị chiếu!` : `Tới lượt ${NAME[status.turn]}`
-    case 'checkmate':
-      return `Chiếu bí! ${NAME[status.winner]} thắng`
-    case 'timeout':
-      return `${NAME[status.winner === 'w' ? 'b' : 'w']} hết giờ! ${NAME[status.winner]} thắng`
-    case 'timeoutDraw':
-      return `Hòa: ${NAME[status.flagged]} hết giờ, nhưng ${NAME[status.flagged === 'w' ? 'b' : 'w']} không còn đủ quân để chiếu bí`
-    case 'stalemate':
-      return 'Hòa: hết nước đi mà không bị chiếu (pat)'
-    case 'insufficient':
-      return 'Hòa: không còn đủ quân để chiếu bí'
-    case 'threefold':
-      return 'Hòa: lặp lại thế cờ 3 lần'
-    case 'fifty':
-      return 'Hòa: 50 nước không ăn quân, không đi tốt'
-  }
+function statusText(status: GameStatus, name: (color: Color) => string): string {
+  if (status.kind !== 'playing') return ''
+  return status.check ? `${name(status.turn)} đang bị chiếu!` : `Tới lượt ${name(status.turn)}`
 }
 
 export default function App() {
@@ -59,13 +46,15 @@ export default function App() {
       return []
     }
   })
-  const [clock, setClock] = useState<ClockState>(() => restoreClock(loadSaved<unknown>('clock', null), moves.length))
+  const [clock, setClock] = useState<ClockState>(() => restoreClock(loadSaved<unknown>('clock', null), moves.length, Date.now()))
+  const [names, setNames] = useState<Names>(() => restoreNames(loadSaved<unknown>('names', null)))
   const [autoFlip, setAutoFlip] = useState<boolean>(() => loadSaved('autoFlip', false))
   const [orientation, setOrientation] = useState<'white' | 'black'>('white')
   const [promotion, setPromotion] = useState<{ from: Square; to: Square } | null>(null)
   const [confirmNew, setConfirmNew] = useState(false)
 
   const chess = useMemo(() => replay(moves), [moves])
+  const sans = useMemo(() => chess.history(), [chess])
   const turn = chess.turn()
   const boardStatus = gameStatus(chess)
   // Lúc bên đang tới lượt hết giờ; null khi đồng hồ không chạy.
@@ -74,13 +63,22 @@ export default function App() {
   const status = flagAt !== null && now >= flagAt ? timeoutStatus(chess, turn) : boardStatus
   const over = status.kind !== 'playing'
   const picking = promotion !== null && !over
-  const material = materialDiff(chess)
   const boardSide = autoFlip ? SIDE[turn] : orientation
   const bottom: Color = boardSide === 'white' ? 'w' : 'b'
   const top: Color = bottom === 'w' ? 'b' : 'w'
+  // Tên người chơi đã nhập; để trống thì gọi theo màu quân.
+  const name = useCallback((color: Color) => names[color].trim() || COLOR_NAME[color], [names])
+
+  // Xem lại thế cờ cũ: bàn cờ, quân đã ăn hiện theo thế cờ đang xem; tiến từng nước thì kêu tiếng nước đó.
+  const stepSound = useCallback((ply: number) => playMove(describeMove(replay(moves.slice(0, ply - 1)), moves[ply - 1])), [moves])
+  const review = useReview(moves.length, stepSound)
+  const shownChess = useMemo(() => (review.reviewing ? replay(moves.slice(0, review.shown)) : chess), [review.reviewing, review.shown, moves, chess])
+  const captured = capturedPieces(shownChess)
+  const material = materialDiff(shownChess)
 
   useEffect(() => save('moves', moves), [moves])
   useEffect(() => save('clock', clock), [clock])
+  useEffect(() => save('names', names), [names])
   useEffect(() => save('autoFlip', autoFlip), [autoFlip])
 
   // Tiếng hết ván: kêu đúng lúc ván vừa kết thúc, không kêu lại khi tải lại trang. Hết ván vì một nước đi
@@ -118,19 +116,21 @@ export default function App() {
   const config = useMemo<Config>(() => {
     // Đang chọn quân phong cấp: giữ nguyên bàn (tốt đứng ở ô cuối), khoá không cho đi.
     if (picking) return { orientation: boardSide, movable: { color: undefined, dests: new Map() } }
-    const last = chess.history({ verbose: true }).at(-1)
+    // Đang xem lại thế cờ cũ, hay ván đã xong: chỉ xem, không đi được.
+    const locked = over || review.reviewing
+    const last = shownChess.history({ verbose: true }).at(-1)
     return {
-      fen: chess.fen(),
+      fen: shownChess.fen(),
       orientation: boardSide,
-      turnColor: SIDE[chess.turn()],
-      check: chess.inCheck(),
+      turnColor: SIDE[shownChess.turn()],
+      check: shownChess.inCheck(),
       lastMove: last ? [last.from, last.to] : undefined,
       movable: {
-        color: over ? undefined : SIDE[chess.turn()],
-        dests: over ? new Map() : legalDests(chess),
+        color: locked ? undefined : SIDE[shownChess.turn()],
+        dests: locked ? new Map() : legalDests(shownChess),
       },
     }
-  }, [chess, boardSide, over, picking])
+  }, [shownChess, boardSide, over, picking, review.reviewing])
 
   // Đồng hồ hiện trên thanh người chơi: bên đang tới lượt bị trừ dần theo giờ thật.
   function clockFace(color: Color): ClockFace | null {
@@ -142,7 +142,7 @@ export default function App() {
     return { ms, running: running && !over, low: ms < lowTime(clock.control) }
   }
 
-  // Đi một nước: ghi nước đi và giờ của bên vừa đi. Lỡ hết giờ rồi thì không nhận nước đó nữa.
+  // Đi một nước: ghi nước đi, thời gian nghĩ và giờ của bên vừa đi. Lỡ hết giờ rồi thì không nhận nước đó nữa.
   function play(move: PlayedMove) {
     const time = Date.now()
     if (flagAt !== null && time >= flagAt) return
@@ -171,6 +171,7 @@ export default function App() {
     setPromotion(null)
   }
 
+  // Đi lại nước vừa đi (bấm nhầm): ván, đồng hồ, thời gian nghĩ quay về như trước nước đó.
   function undo() {
     setPromotion(null)
     setMoves((prev) => prev.slice(0, -1))
@@ -189,7 +190,7 @@ export default function App() {
     playSound('start')
   }
 
-  const score = resultScore(status)
+  const times = clock.spent
 
   return (
     <div className="app">
@@ -197,23 +198,47 @@ export default function App() {
 
       <main className="table">
         <section className="board-col">
-          <PlayerBar color={top} material={material[top]} active={!over && turn === top} clock={clockFace(top)} />
-          <div className="board-frame">
+          <PlayerBar color={top} name={name(top)} captured={captured[top]} score={material[top].score} active={!over && turn === top} clock={clockFace(top)} />
+          <div className={`board-frame${review.reviewing ? ' board-frame--review' : ''}`}>
             <Board config={config} onMove={handleMove} />
             {picking && <PromotionPicker color={turn} onPick={pickPromotion} onCancel={cancelPromotion} />}
           </div>
-          <PlayerBar color={bottom} material={material[bottom]} active={!over && turn === bottom} clock={clockFace(bottom)} />
+          <PlayerBar
+            color={bottom}
+            name={name(bottom)}
+            captured={captured[bottom]}
+            score={material[bottom].score}
+            active={!over && turn === bottom}
+            clock={clockFace(bottom)}
+          />
+          <MoveStrip sans={sans} times={times} shown={review.shown} onGo={review.go} />
         </section>
 
         <aside className="side">
-          <div className={`status status--${status.kind}${status.kind === 'playing' && status.check ? ' status--check' : ''}`} role="status">
-            {score && <span className="status__score">{score}</span>}
-            <span className="status__text">{statusText(status)}</span>
-            {over && <span className="status__hint">Bấm "Ván mới" để chơi tiếp.</span>}
-            {clock.control && moves.length > 0 && <span className="status__clock">{describeControl(clock.control)}</span>}
-          </div>
+          {over ? (
+            <ResultCard
+              result={status}
+              name={name}
+              sans={sans}
+              times={times}
+              orientation={boardSide}
+              onReview={() => review.go(0)}
+              hint={'Bấm "Ván mới" để chơi tiếp.'}
+            />
+          ) : (
+            <div className={`status${status.kind === 'playing' && status.check ? ' status--check' : ''}`} role="status">
+              <span className="status__text">{statusText(status, name)}</span>
+              {review.reviewing && <span className="status__hint">Đang xem lại thế cờ cũ. Bấm nút ▶| (sáng màu) để về ván đang chơi.</span>}
+              {clock.control && moves.length > 0 && <span className="status__clock">{describeControl(clock.control)}</span>}
+            </div>
+          )}
 
-          {moves.length === 0 && <TimeControlPicker value={clock.control} onChange={(control) => setClock(newClock(control))} />}
+          {moves.length === 0 && (
+            <>
+              <PlayerNames names={names} onChange={setNames} />
+              <TimeControlPicker value={clock.control} onChange={(control) => setClock(newClock(control))} />
+            </>
+          )}
 
           <div className="controls">
             <button type="button" className="btn" onClick={undo} disabled={moves.length === 0}>
@@ -233,7 +258,7 @@ export default function App() {
             <span>Tự xoay bàn theo lượt (hai người chung một điện thoại)</span>
           </label>
 
-          <MoveList sans={chess.history()} />
+          <MoveList sans={sans} times={times} shown={review.shown} onGo={review.go} />
 
           <p className="credits">
             Luật cờ: chess.js · Bàn cờ: chessground của lichess · Quân cờ: bộ cburnett của Colin M.L. Burnett (GPL), quân 2D chất liệu dựng từ
