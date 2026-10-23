@@ -23,11 +23,13 @@ Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước 
 - Đủ luật cờ: nhập thành, bắt tốt qua đường, phong cấp (tự chọn Hậu, Xe, Tượng, Mã), chiếu, chiếu bí.
 - Tự xử hòa: hết nước đi (pat), không đủ quân chiếu bí, lặp thế cờ 3 lần, luật 50 nước.
 - Đồng hồ đếm giờ: chọn từ 1 tới 30 phút mỗi bên, có loại được cộng giờ sau mỗi nước (3 | 2, 15 | 10…), hoặc không tính giờ. Đồng hồ chạy từ lúc Trắng đi nước đầu. Hết giờ là thua, trừ khi đối thủ không còn đủ quân để chiếu bí thì hòa.
-- Âm thanh cho mọi việc: đi quân, ăn quân, nhập thành, chiếu, phong cấp, hết ván, hòa, ván mới, đồng hồ sắp hết giờ. Có 12 bộ tiếng, mỗi bộ chỉ có tiếng của đúng một chất liệu:
+- Âm thanh cho mọi việc: đi quân, ăn quân, nhập thành, chiếu, phong cấp, hết ván, hòa, ván mới, đồng hồ sắp hết giờ. Có 16 bộ tiếng, mỗi bộ chỉ có tiếng của đúng một chất liệu hay một loại trống:
   - **Gỗ** (mặc định): quân gỗ trên bàn gỗ, chiếu gõ thêm "cộc cộc", thắng là tiếng vua đổ.
   - **Kim loại**: Thép, Đồng, Gang.
   - **Thủy tinh**: Pha lê, Bi ve, Kính dày.
   - **Đá**: Cẩm thạch, Sỏi, Bàn đá.
+  - **Trống**: Trống tay (bongo, conga vỗ tay), Trống hội (trống con, trống cái đánh dùi).
+  - **Bass**: Trống bass (trống cái của dàn trống), Bass 808 (bass điện tử nhạc remix). Tiếng rất trầm, đeo tai nghe mới nghe đủ.
   - **Vui nhộn**: 8-bit (máy chơi game đời cũ), Bong bóng (tiếng bọt nước "bóp" tròn, êm).
 
   Bấm nút nốt nhạc góc trên để mở bảng chọn: chạm một bộ là nghe thử một đoạn ngắn (đi quân, ăn quân, chiếu, thắng) và dùng luôn bộ đó; hàng nút cuối bảng cho nghe riêng từng tiếng. Nút loa bên cạnh để tắt/bật. Máy nào nhớ lựa chọn của máy đó. iPhone gạt sang chế độ im lặng thì web cũng im.
@@ -106,5 +108,5 @@ Code dự án phát hành theo **GPL-3.0-or-later** (xem file `LICENSE`), vì b�
 - [chess.js](https://github.com/jhlywa/chess.js): luật cờ, giấy phép BSD-2-Clause.
 - [chessground](https://github.com/lichess-org/chessground): bàn cờ của lichess, giấy phép GPL-3.0-or-later.
 - Bộ quân cburnett: Colin M.L. Burnett, giấy phép GPLv2+.
-- Tiếng thu thật: [Kenney](https://kenney.nl), bộ Impact Sounds, Casino Audio và Interface Sounds, giấy phép CC0 (tặng cho mọi người, ai dùng cũng được). Dùng cho bộ Gỗ, các bộ Kim loại, Thủy tinh, và tiếng nền xi măng trong bộ Bàn đá. Tiếng đá gõ đá, bộ 8-bit và Bong bóng do code của dự án tự dựng.
+- Tiếng thu thật: [Kenney](https://kenney.nl), bộ Impact Sounds, Casino Audio và Interface Sounds, giấy phép CC0 (tặng cho mọi người, ai dùng cũng được). Dùng cho bộ Gỗ, các bộ Kim loại, Thủy tinh, và tiếng nền xi măng trong bộ Bàn đá. Tiếng đá gõ đá, các bộ Trống, Bass, 8-bit và Bong bóng do code của dự án tự dựng.
 - Phông chữ Be Vietnam Pro và JetBrains Mono qua Google Fonts, giấy phép SIL Open Font License.

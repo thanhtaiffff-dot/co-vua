@@ -33,6 +33,20 @@ export const SOUND_GROUPS: SoundGroup[] = [
     ],
   },
   {
+    name: 'Trống',
+    sets: [
+      { id: 'hand-drum', name: 'Trống tay', about: 'Bongo, conga vỗ bằng tay: "bốc bốp" dày, ấm.' },
+      { id: 'festival-drum', name: 'Trống hội', about: 'Trống con, trống cái đánh dùi gỗ: "tùng" dày, sâu, ngân lâu.' },
+    ],
+  },
+  {
+    name: 'Bass',
+    sets: [
+      { id: 'bass-drum', name: 'Trống bass', about: 'Trống cái của dàn trống: "thùm" sâu. Đeo tai nghe mới nghe đủ.' },
+      { id: 'bass-808', name: 'Bass 808', about: 'Bass điện tử nhạc remix: "bùm" sâu, căng, trượt nốt khi thắng.' },
+    ],
+  },
+  {
     name: 'Vui nhộn',
     sets: [
       { id: '8bit', name: '8-bit', about: 'Tiếng máy chơi game đời cũ.' },

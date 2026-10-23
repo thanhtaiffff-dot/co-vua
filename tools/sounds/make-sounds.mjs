@@ -1,9 +1,10 @@
 // Tạo các file âm thanh (MP3) cho bàn cờ, ghi vào src/sounds/<tên bộ>/.
 // Các bộ Gỗ, Kim loại (Thép, Đồng, Gang) và Thủy tinh (Pha lê, Bi ve, Kính dày) là tiếng thu thật của Kenney
-// (CC0, trong tools/sounds/kenney/). Các bộ Đá (Cẩm thạch, Sỏi, Bàn đá), 8-bit và Bong bóng do chính file này
-// tự tạo bằng toán; riêng Bàn đá lót thêm tiếng chạm nền xi măng của Kenney. Muốn sửa tiếng thì sửa số ở đây rồi
-// chạy lại.
-// Mỗi bộ chỉ có tiếng của đúng chất liệu đó (không chen chuông hay nhạc cụ khác), riêng 8-bit là tiếng máy game.
+// (CC0, trong tools/sounds/kenney/). Các bộ Đá (Cẩm thạch, Sỏi, Bàn đá), Trống, Bass, 8-bit và Bong bóng do chính
+// file này tự tạo bằng toán; riêng Bàn đá lót thêm tiếng chạm nền xi măng của Kenney. Muốn sửa tiếng thì sửa số ở
+// đây rồi chạy lại.
+// Mỗi bộ chỉ có tiếng của đúng chất liệu, nhạc cụ đó (không chen chuông hay nhạc cụ khác), riêng 8-bit là tiếng máy
+// game.
 //
 // Cách chạy (cần cài ffmpeg): node tools/sounds/make-sounds.mjs [tên bộ ...]
 // Không ghi tên bộ thì tạo hết các bộ.
@@ -187,6 +188,47 @@ function softenPeak(x, targetDb) {
   return over > 0.2 ? limit(x, Math.min(over, 6), 0.006) : x
 }
 
+// Trọng số A: tai người nghe tiếng trầm nhỏ hơn thực tế (tiếng 60 Hz phải to hơn chừng 25 dB mới nghe bằng tiếng
+// 1 kHz). Gồm bốn khâu lọc cao bậc 1 (20,6 Hz hai lần, 107,7 Hz, 737,9 Hz) và hai khâu lọc thấp (12,2 kHz hai lần).
+function stage(x, f, high) {
+  const c = Math.tan((Math.PI * f) / SR)
+  const a = (1 - c) / (1 + c)
+  const out = new Float32Array(x.length)
+  let x1 = 0
+  let y1 = 0
+  for (let i = 0; i < x.length; i++) {
+    const y = high ? (x[i] - x1) / (1 + c) + a * y1 : (c * (x[i] + x1)) / (1 + c) + a * y1
+    x1 = x[i]
+    y1 = y
+    out[i] = y
+  }
+  return out
+}
+const aRaw = (x) => stage(stage(stage(stage(stage(stage(x, 20.6, true), 20.6, true), 107.7, true), 737.9, true), 12194, false), 12194, false)
+// Chuẩn để tiếng 1 kHz đi qua không đổi.
+const A_NORM = (() => {
+  const probe = new Float32Array(SR)
+  for (let i = 0; i < SR; i++) probe[i] = Math.sin((2 * Math.PI * 1000 * i) / SR)
+  return 1 / Math.sqrt(((aRaw(probe).slice(SR / 2).reduce((s, v) => s + v * v, 0) / (SR / 2)) * 2))
+})()
+const aDb = (x) => windowDb(aRaw(x).map((v) => v * A_NORM))
+
+// Cân độ to cho bộ nhiều tiếng trầm (trống, bass). `finish` bỏ qua tiếng dưới 300 Hz nên bass sẽ ù quá hoặc chiếm hết
+// trần; ở đây đo theo trọng số A, đặt cao hơn mức chung 0,8 dB (các bộ khác đo kiểu này cũng nằm quanh đó). Đỉnh vượt
+// trần thì nén nhả chậm (50 ms) cho tiếng bass khỏi rè; còn vượt nữa thì hạ cả tiếng.
+function level(x, targetDb) {
+  const peakDb = (y) => 20 * Math.log10(y.reduce((m, v) => Math.max(m, Math.abs(v)), 1e-9))
+  const gain = (y, db) => y.map((v) => v * 10 ** (db / 20))
+  const want = targetDb + 0.8
+  let y = gain(x, want - aDb(x))
+  const over = peakDb(y) + 1
+  if (over > 0.2) y = limit(y, Math.min(over + 0.3, 4), 0.05)
+  y = gain(y, Math.min(want - aDb(y), -1 - peakDb(y)))
+  let end = y.length
+  while (end > 0 && Math.abs(y[end - 1]) < 1e-4) end--
+  return fadeOut(y.slice(0, end), 0.01)
+}
+
 // ---------- Tự tạo tiếng ----------
 
 // Số ngẫu nhiên có hạt giống cố định: chạy lại bao nhiêu lần cũng ra đúng tiếng cũ.
@@ -326,8 +368,206 @@ function stoneHit({ low, high = 7500, damp = 0.004, tilt = 0.7, contact = 0.0004
   return fadeOut(filter(x, 'highpass', 80), 0.01)
 }
 
+// Mặt trống tròn rung ở nhiều tần số riêng, tỉ lệ với nghiệm j(m, n) của hàm Bessel (m: số đường kính đứng yên).
+const ZEROS = [
+  [0, 2.4048], [1, 3.8317], [2, 5.1356], [0, 5.5201], [3, 6.3802], [1, 7.0156], [4, 7.5883], [2, 8.4172], [0, 8.6537],
+  [5, 8.7715], [3, 9.761], [6, 9.9361], [1, 10.1735], [4, 11.0647], [7, 11.0864], [2, 11.6198], [0, 11.7915], [8, 12.2251],
+  [5, 12.3386], [3, 13.0152], [9, 13.3543], [1, 13.3237], [6, 13.5893], [0, 14.9309],
+]
+
+// Hàm Bessel J_m(x), tính bằng tích phân: (1/π) ∫ cos(mτ − x sin τ) dτ, τ từ 0 tới π.
+function bessel(m, x) {
+  const n = 256
+  let sum = 0
+  for (let k = 0; k <= n; k++) {
+    const t = (Math.PI * k) / n
+    sum += (k === 0 || k === n ? 0.5 : 1) * Math.cos(m * t - x * Math.sin(t))
+  }
+  return sum / n
+}
+
+// Một cú gõ lên mặt trống.
+// `f`: tần số trầm nhất của mặt trống (Hz). `at`: chỗ gõ, 0 là giữa mặt, 1 là sát vành. Gõ giữa thì trầm, đục;
+// gõ gần vành thì nhiều tiếng cao, ngân. `contact`: tay hay dùi chạm mặt da bao lâu (giây): chạm lâu (tay mềm, ấn)
+// thì tiếng ấm, chạm nhanh (dùi, đập dứt khoát) thì sáng. `ring`: mode (1,1) tắt sau bao lâu; mode cao tắt nhanh
+// hơn; mode (0,1) đẩy không khí mạnh nên tắt nhanh. `glide`: gõ mạnh thì mặt da căng thêm, cao lên rồi trùng
+// xuống. `slap`: tiếng "bốp" của da tay hay đầu dùi đập vào mặt da. `body`: tiếng thùng trống cộng hưởng
+// [tần số, độ to, thời gian tắt]. `velocity`: gõ mạnh nhẹ (1 là vừa).
+function skin({ f, at = 0.6, contact = 0.001, ring = 0.25, glide = 0.04, glideTime = 0.05, slap = 0, slapTone = 2500, body = null, velocity = 1, seed = 1, seconds = 0.6, top = 7000 }) {
+  const rand = random(seed)
+  const x = samples(seconds)
+  const hard = contact / (0.7 + 0.3 * velocity)
+  const f11 = f * (3.8317 / 2.4048)
+  for (const [m, j] of ZEROS) {
+    const freq = f * (j / 2.4048) * (0.994 + 0.012 * rand())
+    if (freq > top) continue
+    // Dấu của mode tại chỗ gõ và ở chỗ tai nghe khác nhau, nên các mode không cùng dồn lên một đỉnh lúc vừa gõ.
+    const ear = j < 4 ? 1 : rand() < 0.5 ? -1 : 1
+    let amp = bessel(m, j * at) * ear * (m === 0 ? 1 : m === 1 ? 0.85 : 0.7)
+    amp /= 1 + (2 * freq * hard) ** 2
+    if (Math.abs(amp) < 1e-4) continue
+    const tau = m === 0 && j < 3 ? ring * 0.4 : ring * Math.min(1.2, (f11 / freq) ** 0.75)
+    const n = Math.min(x.length, Math.round(tau * 7 * SR))
+    const g = glide * velocity
+    let phase = 0
+    for (let i = 0; i < n; i++) {
+      const t = i / SR
+      phase += (2 * Math.PI * freq * (1 + g * Math.exp(-t / glideTime))) / SR
+      x[i] += amp * Math.sin(phase) * Math.exp(-t / tau)
+    }
+  }
+  if (body) {
+    const [bf, gain, decay] = body
+    for (let i = 0; i < x.length; i++) x[i] += gain * Math.sin((2 * Math.PI * bf * i) / SR) * Math.exp(-i / SR / decay)
+  }
+  // Lực gõ tăng dần trong lúc chạm, nên tiếng không bật lên tức thì.
+  const rise = Math.max(2, Math.round((hard / 2) * SR))
+  for (let i = 0; i < rise; i++) x[i] *= 0.5 - 0.5 * Math.cos((Math.PI * i) / rise)
+  if (slap) {
+    const s = samples(0.03)
+    for (let i = 0; i < s.length; i++) s[i] = (rand() * 2 - 1) * Math.exp(-i / SR / 0.004)
+    const crack = filter(filter(s, 'highpass', slapTone * 0.5), 'peak', slapTone, { q: 1.2, gainDb: 6 })
+    let peak = 0
+    for (const v of x) peak = Math.max(peak, Math.abs(v))
+    for (let i = 0; i < crack.length; i++) x[i] += slap * peak * crack[i]
+  }
+  for (let i = 0; i < x.length; i++) x[i] *= velocity
+  return fadeOut(filter(x, 'highpass', 40), 0.02)
+}
+
+// Biến đổi Fourier nhanh (tại chỗ), dùng để "đặt" tiếng trống vào một căn phòng.
+function fft(re, im, inverse = false) {
+  const n = re.length
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1
+    for (; j & bit; bit >>= 1) j ^= bit
+    j ^= bit
+    if (i < j) {
+      ;[re[i], re[j]] = [re[j], re[i]]
+      ;[im[i], im[j]] = [im[j], im[i]]
+    }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = ((inverse ? 2 : -2) * Math.PI) / len
+    const wr = Math.cos(ang)
+    const wi = Math.sin(ang)
+    for (let i = 0; i < n; i += len) {
+      let cr = 1
+      let ci = 0
+      for (let k = 0; k < len / 2; k++) {
+        const a = i + k
+        const b = a + len / 2
+        const br = re[b] * cr - im[b] * ci
+        const bi = re[b] * ci + im[b] * cr
+        re[b] = re[a] - br
+        im[b] = im[a] - bi
+        re[a] += br
+        im[a] += bi
+        const t = cr * wr - ci * wi
+        ci = cr * wi + ci * wr
+        cr = t
+      }
+    }
+  }
+  if (inverse) for (let i = 0; i < n; i++) re[i] /= n
+}
+
+// Phòng nhỏ: tiếng dội sớm từ tường gần cộng một đuôi vang ngắn, tiếng cao tắt nhanh hơn tiếng trầm. Cho tiếng
+// trống tròn, có không gian, không khô như máy. `tail`: thời gian vang tắt hẳn (giây); `wet`: độ to phần vang.
+function room(x, { wet = 0.22, tail = 0.35, seed = 7 } = {}) {
+  const rand = random(seed)
+  const irLen = Math.round(tail * SR)
+  const ir = new Float32Array(irLen)
+  for (const [ms, g] of [[6.1, 0.5], [9.7, 0.38], [13.3, 0.3], [17.9, 0.24], [23.5, 0.18]]) ir[Math.round((ms * SR) / 1000)] += g * (rand() < 0.5 ? -1 : 1)
+  const tau = tail / 6.9
+  const late = new Float32Array(irLen)
+  for (let i = Math.round(0.012 * SR); i < irLen; i++) late[i] = (rand() * 2 - 1) * Math.exp(-i / SR / tau) * 0.35
+  const dark = filter(filter(late, 'lowpass', 4500), 'lowpass', 3000)
+  for (let i = 0; i < irLen; i++) ir[i] += dark[i]
+  // Chuẩn hoá năng lượng của phần vang, để `wet` chính là độ to của tiếng vang so với tiếng gõ.
+  let energy = 0
+  for (const v of ir) energy += v * v
+  for (let i = 0; i < irLen; i++) ir[i] /= Math.sqrt(energy)
+  let n = 1
+  while (n < x.length + irLen) n <<= 1
+  const ar = new Float64Array(n)
+  const ai = new Float64Array(n)
+  const br = new Float64Array(n)
+  const bi = new Float64Array(n)
+  const src = filter(x, 'highpass', 120)
+  for (let i = 0; i < x.length; i++) ar[i] = src[i]
+  for (let i = 0; i < irLen; i++) br[i] = ir[i]
+  fft(ar, ai)
+  fft(br, bi)
+  for (let i = 0; i < n; i++) {
+    const r = ar[i] * br[i] - ai[i] * bi[i]
+    ai[i] = ar[i] * bi[i] + ai[i] * br[i]
+    ar[i] = r
+  }
+  fft(ar, ai, true)
+  const out = new Float32Array(x.length + irLen)
+  for (let i = 0; i < out.length; i++) out[i] = (i < x.length ? x[i] : 0) + wet * ar[i]
+  let end = out.length
+  while (end > x.length && Math.abs(out[end - 1]) < 1e-5) end--
+  return fadeOut(out.slice(0, end), 0.05)
+}
+
 // Chuỗi cú gõ: [tiếng, lúc (giây), độ to, tốc độ phát].
 const seq = (...steps) => mix(...steps.map(([sound, at = 0, gain = 1, rate = 1]) => ({ sound: rate === 1 ? sound : speed(sound, rate), at, gain })))
+
+// Hồi trống: những cú gõ dồn liên tiếp, mau dần hay đều, to dần hay nhỏ dần. `make(k, velocity)` tạo cú thứ k.
+function roll(make, { count, from, to = from, start = 0.6, end = 1, at = 0, jitter = 0.003, seed = 1 }) {
+  const rand = random(seed)
+  const steps = []
+  let t = at
+  for (let k = 0; k < count; k++) {
+    const u = count === 1 ? 1 : k / (count - 1)
+    const v = start + (end - start) * u
+    steps.push([make(k, v * (0.92 + 0.16 * rand())), t + jitter * (rand() * 2 - 1), 1])
+    t += 1 / (from + (to - from) * u)
+  }
+  return seq(...steps)
+}
+
+// Tiếng sắp hết giờ: bốn tiếng "tích tắc" xen nhau, nhỏ dần.
+const ticks = (a, b) => seq(...[0, 0.18, 0.36, 0.54].map((at, i) => [i % 2 ? b : a, at, 1 - i * 0.1]))
+
+// Ép mềm tiếng (như ampli hay máy nén): đỉnh tròn lại, có thêm bậc cao nên loa nhỏ nghe rõ hơn.
+function squash(x, drive) {
+  let peak = 0
+  for (const v of x) peak = Math.max(peak, Math.abs(v))
+  const norm = Math.tanh(drive)
+  return x.map((v) => (Math.tanh((drive * v) / peak) / norm) * peak)
+}
+
+// Trống 808 (máy trống điện tử Roland TR-808, gốc của tiếng bass trong nhạc remix, hip hop): một dao động hình sin
+// trùng giọng thật nhanh từ `from` lần xuống nốt `note` ("bùm"), rồi ngân. `to`: trượt sang nốt khác (kiểu 808 slide).
+// `drive`: ép tiếng cho căng; càng ép càng nhiều bậc cao 3f, 5f, 7f..., nhờ đó loa điện thoại (không phát được tiếng
+// quá trầm) vẫn nghe ra bass, vì tai tự suy ra nốt trầm từ các bậc cao đó.
+function tr808({ note, to = note, slideAt = 0, slideTime = 0.15, from = 2.4, drop = 0.025, decay = 0.16, hold = 0, drive = 3.5, click = 0.2, seed = 1 }) {
+  const rand = random(seed)
+  const x = samples(hold + decay * 6 + 0.04)
+  let phase = 0
+  for (let i = 0; i < x.length; i++) {
+    const t = i / SR
+    const u = Math.min(1, Math.max(0, (t - slideAt) / slideTime))
+    const base = note * (to / note) ** (u * u * (3 - 2 * u))
+    phase += (2 * Math.PI * base * (1 + (from - 1) * Math.exp(-t / drop))) / SR
+    const env = Math.min(1, t / 0.0015) * (t < hold ? 1 : Math.exp(-(t - hold) / decay))
+    x[i] = env * Math.sin(phase)
+  }
+  const norm = Math.tanh(drive)
+  for (let i = 0; i < x.length; i++) x[i] = Math.tanh(drive * x[i]) / norm
+  // Tiếng "tách" rất ngắn lúc bắt đầu, như máy 808 thật.
+  const tick = samples(0.004)
+  for (let i = 0; i < tick.length; i++) tick[i] = (rand() * 2 - 1) * Math.exp(-i / SR / 0.0008)
+  const knock = filter(filter(tick, 'highpass', 1200), 'lowpass', 6000)
+  for (let i = 0; i < knock.length; i++) x[i] += click * knock[i]
+  return fadeOut(filter(filter(filter(x, 'lowpass', 2800), 'lowpass', 3200), 'highpass', 28), 0.02)
+}
+
+// Tần số các nốt dùng cho bass (Hz).
+const HZ = { D2: 73.42, F2: 87.31, A2: 110, D3: 146.83, G4: 392, A4: 440 }
 
 // Lấy một tiếng thu, đổi tốc độ (dưới 1: trầm và ngân lâu hơn), cắt còn `seconds` giây, bỏ phần ù dưới `hz`.
 const take = (name, seconds, rate = 1, hz = 120) => filter(cut(rate === 1 ? load(name) : speed(load(name), rate), seconds), 'highpass', hz)
@@ -350,6 +590,154 @@ const soften = (sounds) => Object.fromEntries(Object.entries(sounds).map(([event
 // cỡ 4–5 dB như trên lichess, đủ chú ý mà không giật mình. Chiếu và phong cấp chỉ là phần "điểm thêm":
 // lúc chơi, web phát chúng chồng lên tiếng đi quân hoặc ăn quân.
 const LEVEL = { move: -20, capture: -18, castle: -20, check: -19, promote: -19.5, end: -19, draw: -20, lowTime: -19, start: -21 }
+
+// Trống tay: cặp bongo và một trống conga, vỗ bằng tay. Tiếng "bốc bốp" tròn, ấm, gọn.
+// `thick`: bản dày: trống to hơn nên trầm hơn, vỗ gần giữa mặt hơn, ngân lâu hơn, thùng trống cộng hưởng mạnh hơn.
+function handDrum(thick) {
+  // Bongo nhỏ (cao) và bongo lớn; conga trầm hơn, có thùng gỗ dài cộng hưởng.
+  const macho = (o = {}) =>
+    skin({ ...(thick ? { f: 355, at: 0.76, ring: 0.19, body: [175, 0.2, 0.04] } : { f: 400, at: 0.82, ring: 0.16 }), contact: 0.0011, glide: 0.035, top: 6500, seconds: 0.45, ...o })
+  const hembra = (o = {}) =>
+    skin({ ...(thick ? { f: 250, at: 0.72, ring: 0.24, body: [128, 0.28, 0.05] } : { f: 285, at: 0.8, ring: 0.2 }), contact: 0.0012, glide: 0.035, top: 6000, seconds: 0.5, ...o })
+  const conga = (o = {}) =>
+    skin({ ...(thick ? { f: 140, at: 0.72, ring: 0.34, body: [84, 0.45, 0.08] } : { f: 158, at: 0.78, ring: 0.3, body: [92, 0.25, 0.06] }), contact: 0.0013, glide: 0.03, top: 5000, seconds: 0.8, ...o })
+  // Vỗ bốp (slap): tay khum đập sát vành, chạm rất nhanh, tiếng giòn, tắt nhanh.
+  const slap = (drum, o = {}) => drum({ at: 0.9, contact: 0.0005, ring: 0.09, slap: 0.35, slapTone: 3200, ...o })
+  // Vỗ trầm (bass): cả bàn tay ấn giữa mặt trống.
+  const bass = (o = {}) => conga({ at: 0.12, contact: 0.004, ring: 0.22, glide: 0.06, body: thick ? [84, 0.8, 0.1] : [92, 0.5, 0.08], ...o })
+  // Đầu ngón tay gõ khẽ, tay kia chặn mặt da: "tíc" rất ngắn.
+  const tip = (drum, o = {}) => drum({ at: 0.85, contact: 0.0009, ring: 0.035, velocity: 0.6, ...o })
+  return {
+    move: hembra({ seed: 1 }),
+    capture: seq([slap(conga, { seed: 2, body: thick ? [84, 0.2, 0.05] : [92, 0.08, 0.04] }), 0, 1], [bass({ seed: 3 }), 0.012, thick ? 0.35 : 0.2]),
+    castle: seq([macho({ seed: 4 }), 0, 0.9], [hembra({ seed: 5 }), 0.13, 1]),
+    check: seq([slap(macho, { seed: 6 }), 0.09, 1], [slap(macho, { seed: 7, velocity: 0.9 }), 0.16, 0.85]),
+    promote: seq([conga({ seed: 8 }), 0.08, 0.8], [hembra({ seed: 9 }), 0.17, 0.85], [macho({ seed: 10 }), 0.26, 1]),
+    // Thắng: dồn nhanh từ bongo cao xuống conga, kết bằng cú vỗ trầm và một tiếng conga ngân.
+    end: room(
+      seq(
+        ...[macho, macho, hembra, hembra, conga, conga].map((drum, k) => [drum({ seed: 20 + k, velocity: 0.75 + 0.05 * k }), k * 0.065, 1]),
+        [bass({ seed: 30, velocity: 1.1 }), 0.42, 1],
+        [conga({ seed: 31, ring: 0.42 }), 0.425, 0.8],
+      ),
+      { wet: 0.22 },
+    ),
+    draw: seq([hembra({ seed: 40, velocity: 0.85 }), 0, 1], [hembra({ seed: 41, velocity: 0.85 }), 0.26, 1]),
+    lowTime: ticks(tip(macho, { seed: 50 }), tip(hembra, { seed: 51 })),
+    // Ván mới: một câu vỗ ngắn "tum ta-ka tum".
+    start: room(
+      seq(
+        [bass({ seed: 60, velocity: 0.8 }), 0, 1],
+        [tip(macho, { seed: 61, velocity: 0.8 }), 0.15, 1],
+        [tip(hembra, { seed: 62, velocity: 0.8 }), 0.21, 1],
+        [slap(conga, { seed: 63, velocity: 0.8 }), 0.3, 0.8],
+        [hembra({ seed: 64 }), 0.42, 1],
+      ),
+      { wet: 0.22 },
+    ),
+  }
+}
+
+// Trống hội: trống cái lớn và trống con đánh bằng dùi gỗ, như trống ngày hội, trống trường. Tiếng "tùng" trầm, chắc.
+// `thick`: bản dày: trống to hơn, gõ gần giữa mặt hơn, thùng trống cộng hưởng mạnh và lâu hơn.
+function festivalDrum(thick) {
+  // Trống con: mặt nhỏ, căng, đi quân không bị ù. Trống cái: mặt rộng, ngân dài.
+  const tune = thick ? 0.85 : 1
+  const small = (o = {}) =>
+    skin({ ...(thick ? { f: 150, at: 0.4, ring: 0.22, body: [96, 0.6, 0.08] } : { f: 178, at: 0.55, ring: 0.17, body: [120, 0.15, 0.05] }), contact: 0.0009, glide: 0.05, slap: 0.1, slapTone: 1800, top: 5000, seconds: 0.55, ...o })
+  const big = (o = {}) =>
+    skin({ ...(thick ? { f: 64, at: 0.38, ring: 0.5, body: [50, 0.65, 0.24] } : { f: 74, at: 0.45, ring: 0.42, body: [58, 0.35, 0.18] }), contact: 0.0012, glide: 0.07, glideTime: 0.08, slap: 0.08, slapTone: 1500, top: 3500, seconds: 1.3, ...o })
+  // Dùi chặn mặt trống ngay sau khi gõ: "tục" ngắn.
+  const damp = (o = {}) => small({ ring: 0.045, velocity: 0.65, ...o })
+  return {
+    move: small({ seed: 1, velocity: 0.85 }),
+    capture: seq([small({ seed: 2, velocity: 1.15, at: 0.6 }), 0, 1], [big({ seed: 3, velocity: 0.7, ring: 0.3, seconds: 0.8 }), 0.01, 0.6]),
+    castle: seq([small({ seed: 4, velocity: 0.85 }), 0, 1], [small({ seed: 5, velocity: 0.85, f: 160 * tune }), 0.14, 0.9]),
+    // Chiếu: hai tiếng "tùng tùng" dứt khoát.
+    check: seq([small({ seed: 6, velocity: 1.15 }), 0.09, 1], [small({ seed: 7, velocity: 1.1 }), 0.19, 0.95]),
+    promote: seq([big({ seed: 8, velocity: 0.75, ring: 0.3, seconds: 0.8 }), 0.08, 0.85], [small({ seed: 9, velocity: 1, f: 200 * tune }), 0.2, 1]),
+    // Thắng: trống con dồn mau dần rồi trống cái nổ một tiếng "tùng" lớn, ngân.
+    end: room(
+      seq(
+        [roll((k, v) => small({ seed: 20 + k, velocity: v }), { count: 7, from: 9, to: 16, start: 0.55, end: 0.95, seed: 3 }), 0, 1],
+        [big({ seed: 40, velocity: 1.25 }), 0.5, 1],
+        [small({ seed: 41, velocity: 1.1 }), 0.505, 0.5],
+      ),
+      { wet: 0.25, tail: 0.5 },
+    ),
+    draw: seq([small({ seed: 50, velocity: 0.8 }), 0, 1], [small({ seed: 51, velocity: 0.8 }), 0.26, 1]),
+    lowTime: ticks(damp({ seed: 60 }), damp({ seed: 61, f: 165 * tune })),
+    // Ván mới: trống cái điểm hai tiếng rồi trống con vào nhịp.
+    start: room(
+      seq(
+        [big({ seed: 70, velocity: 0.8, ring: 0.4, seconds: 1 }), 0, 1],
+        [small({ seed: 71, velocity: 0.7 }), 0.2, 0.9],
+        [small({ seed: 72, velocity: 0.8 }), 0.3, 0.9],
+        [big({ seed: 73, velocity: 0.9, ring: 0.45, seconds: 1 }), 0.42, 1],
+      ),
+      { wet: 0.25, tail: 0.45 },
+    ),
+  }
+}
+
+// Trống bass: trống cái của dàn trống, đạp bằng dùi bông. Tiếng "thùm" sâu, tự nhiên.
+function bassDrum() {
+  const k = (o = {}) =>
+    squash(skin({ f: 60, at: 0.25, contact: 0.0018, ring: 0.15, glide: 0.1, glideTime: 0.025, body: [50, 0.45, 0.13], slap: 0.22, slapTone: 2800, top: 3500, seconds: 0.9, ...o }), 1.6)
+  // Dùi đạp giữ lì trên mặt trống: "bụp" ngắn.
+  const muted = (o = {}) => k({ ring: 0.035, body: [50, 0.2, 0.03], velocity: 0.7, slap: 0.35, ...o })
+  return {
+    move: k({ seed: 1, velocity: 0.85 }),
+    capture: k({ seed: 2, velocity: 1.2, slap: 0.3, contact: 0.0013 }),
+    castle: seq([k({ seed: 3, velocity: 0.8 }), 0, 1], [k({ seed: 4, velocity: 0.85 }), 0.14, 1]),
+    // Chiếu: hai cú đạp kép dứt khoát.
+    check: seq([k({ seed: 5, velocity: 1.15, slap: 0.3 }), 0.09, 1], [k({ seed: 6, velocity: 1.1, slap: 0.3 }), 0.18, 1]),
+    promote: seq([k({ seed: 7, velocity: 0.7 }), 0.08, 1], [k({ seed: 8, velocity: 0.85 }), 0.17, 1], [k({ seed: 9, velocity: 1.15, slap: 0.3 }), 0.26, 1]),
+    // Thắng: đạp kép dồn mau dần rồi một cú thật mạnh, ngân.
+    end: room(
+      seq(
+        [roll((i, v) => k({ seed: 20 + i, velocity: v }), { count: 8, from: 10, to: 18, start: 0.5, end: 0.95, seed: 4 }), 0, 1],
+        [k({ seed: 40, velocity: 1.3, ring: 0.3, body: [50, 0.6, 0.28], seconds: 1.4, slap: 0.3 }), 0.58, 1],
+      ),
+      { wet: 0.25, tail: 0.5 },
+    ),
+    draw: seq([k({ seed: 50, velocity: 0.75 }), 0, 1], [k({ seed: 51, velocity: 0.75 }), 0.26, 1]),
+    lowTime: ticks(muted({ seed: 60 }), muted({ seed: 61 })),
+    start: room(
+      seq([k({ seed: 70, velocity: 0.95 }), 0, 1], [k({ seed: 71, velocity: 0.7 }), 0.3, 1], [k({ seed: 72, velocity: 0.75 }), 0.45, 1], [k({ seed: 73, velocity: 1.05 }), 0.6, 1]),
+      { wet: 0.22, tail: 0.45 },
+    ),
+  }
+}
+
+// Bass 808: tiếng bass điện tử của nhạc remix, "bùm" sâu và căng, có trượt nốt.
+function bass808() {
+  const b = tr808
+  return {
+    move: b({ note: HZ.D2, from: 2.8, drive: 4.2, seed: 1 }),
+    capture: b({ note: HZ.D2, from: 3, decay: 0.26, drive: 4.5, click: 0.3, seed: 2 }),
+    castle: seq([b({ note: HZ.D2, decay: 0.12, seed: 3 }), 0, 1], [b({ note: HZ.A2, decay: 0.16, seed: 4 }), 0.14, 0.9]),
+    // Chiếu: hai tiếng cao hơn một quãng tám, dứt khoát.
+    check: seq([b({ note: HZ.D3, decay: 0.09, drive: 4, seed: 5 }), 0.09, 1], [b({ note: HZ.D3, decay: 0.12, drive: 4, seed: 6 }), 0.18, 1]),
+    // Phong cấp: nốt trượt từ thấp vọt lên cao.
+    promote: b({ note: HZ.D2, to: HZ.D3, slideAt: 0.11, slideTime: 0.16, decay: 0.3, hold: 0.18, seed: 7 }),
+    // Thắng: hai nốt ngắn rồi một tiếng "bùm" dài trượt từ cao xuống trầm.
+    end: room(
+      seq(
+        [b({ note: HZ.D2, decay: 0.09, seed: 8 }), 0, 0.9],
+        [b({ note: HZ.F2, decay: 0.09, seed: 9 }), 0.13, 0.9],
+        [b({ note: HZ.A2, to: HZ.D2, slideAt: 0.1, slideTime: 0.4, decay: 0.38, hold: 0.2, drive: 4.5, click: 0.25, seed: 10 }), 0.3, 1],
+      ),
+      { wet: 0.18, tail: 0.5 },
+    ),
+    draw: seq([b({ note: HZ.D2, decay: 0.12, seed: 11 }), 0, 0.85], [b({ note: HZ.D2, decay: 0.12, seed: 12 }), 0.26, 0.85]),
+    lowTime: ticks(b({ note: HZ.A4, from: 1.5, decay: 0.03, drive: 2, seed: 13 }), b({ note: HZ.G4, from: 1.5, decay: 0.03, drive: 2, seed: 14 })),
+    start: room(
+      seq([b({ note: HZ.D2, decay: 0.12, seed: 15 }), 0, 1], [b({ note: HZ.D2, decay: 0.07, seed: 16 }), 0.2, 0.85], [b({ note: HZ.F2, decay: 0.09, seed: 17 }), 0.32, 0.9], [b({ note: HZ.A2, decay: 0.25, seed: 18 }), 0.46, 1]),
+      { wet: 0.18 },
+    ),
+  }
+}
 
 const SETS = {
   // Gỗ: mọi tiếng đều là tiếng gõ thu thật, để đúng cao độ gốc, không pha đàn hay chuông. Mỗi cú gõ gồm cú chạm
@@ -717,7 +1105,16 @@ const SETS = {
       start: seq([land, 0, 0.6], [tick, 0.07, 0.45], [tock, 0.15, 0.7], [place2, 0.21, 0.5], [clack, 0.3, 0.4], [place, 0.37, 0.85]),
     })
   },
+
+  // Trống tay, Trống hội dùng bản dày.
+  'hand-drum': () => handDrum(true),
+  'festival-drum': () => festivalDrum(true),
+  'bass-drum': bassDrum,
+  'bass-808': bass808,
 }
+
+// Bộ nhiều tiếng trầm: cân bằng `level` (đo theo trọng số A) thay cho `finish`.
+const LOW_SETS = new Set(['hand-drum', 'festival-drum', 'bass-drum', 'bass-808'])
 
 const FILES = { move: 'move', capture: 'capture', castle: 'castle', check: 'check', promote: 'promote', end: 'end', draw: 'draw', lowTime: 'low-time', start: 'start' }
 
@@ -727,7 +1124,7 @@ for (const [name, make] of Object.entries(SETS)) {
   const dir = join(OUT, name)
   mkdirSync(dir, { recursive: true })
   for (const [event, sound] of Object.entries(make())) {
-    writeMp3(finish(sound, LEVEL[event]), join(dir, `${FILES[event]}.mp3`))
+    writeMp3(LOW_SETS.has(name) ? level(sound, LEVEL[event]) : finish(sound, LEVEL[event]), join(dir, `${FILES[event]}.mp3`))
   }
   console.log(`Đã tạo bộ ${name} trong ${dir}`)
 }
