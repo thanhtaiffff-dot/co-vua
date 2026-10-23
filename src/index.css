@@ -479,6 +479,38 @@ body:has(.sound-sheet[open]) {
     linear-gradient(160deg, #8e9293, #5c6163);
 }
 
+/* Trống tay: cặp bongo mặt to trên nền gỗ sẫm */
+.swatch--hand-drum {
+  background:
+    radial-gradient(circle closest-side at 34% 60%, #efd9ad 0 56%, #cfa970 78%, #3d2412 80% 95%, transparent 97%),
+    radial-gradient(circle closest-side at 78% 30%, #efd9ad 0 50%, #cfa970 72%, #3d2412 74% 93%, transparent 95%),
+    linear-gradient(160deg, #8a4d22, #4a260f);
+}
+
+/* Trống hội: mặt da lớn, viền đinh vàng, tang sơn đỏ */
+.swatch--festival-drum {
+  background:
+    radial-gradient(circle closest-side, #efd9ad 0 46%, #cfa970 70%, transparent 71%),
+    radial-gradient(circle closest-side, transparent 0 80%, #9e1f16 81% 90%, #560e09 100%),
+    repeating-conic-gradient(#f0c35a 0 8deg, #560e09 8deg 24deg);
+}
+
+/* Trống bass: mặt trước trống cái màu đen, vành sáng, lỗ thoát hơi */
+.swatch--bass-drum {
+  background:
+    radial-gradient(circle closest-side at 66% 64%, #050607 0 60%, #d7dbe0 66% 80%, transparent 84%),
+    radial-gradient(circle closest-side, transparent 0 80%, #d7dbe0 82% 88%, #0f1114 91%),
+    radial-gradient(circle closest-side at 40% 36%, #2a2d33, #0f1114);
+}
+
+/* Bass 808: thân máy trống xám với hàng phím đỏ, cam, vàng, kem */
+.swatch--bass-808 {
+  background:
+    linear-gradient(90deg, #e2412f 0 22%, transparent 22% 26%, #f08a24 26% 48%, transparent 48% 52%, #f2cc3a 52% 74%, transparent 74% 78%, #efe6cf 78%) 50% 72% / 76% 22% no-repeat,
+    linear-gradient(90deg, #f08a24 0 30%, transparent 30% 35%, #efe6cf 35%) 50% 30% / 76% 10% no-repeat,
+    linear-gradient(160deg, #3a3b3d, #0f1114);
+}
+
 /* Ô vuông to như điểm ảnh trên máy chơi game đời cũ */
 .swatch--8bit {
   background: repeating-conic-gradient(#306230 0 25%, #8bac0f 0 50%) 0 0 / 20px 20px;

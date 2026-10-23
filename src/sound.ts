@@ -15,6 +15,10 @@ export const SOUND_SETS = [
   'polished-stone',
   'pebbles',
   'stone-table',
+  'hand-drum',
+  'festival-drum',
+  'bass-drum',
+  'bass-808',
   '8bit',
   'bubble',
 ] as const
@@ -31,6 +35,9 @@ export function soundUrl(set: SoundSet, name: SoundName): string | undefined {
   const file = name.replace(/[A-Z]/g, (letter) => '-' + letter.toLowerCase())
   return URLS[`./sounds/${set}/${file}.mp3`]
 }
+
+// Bộ mà mỗi tiếng là một nốt nhạc: chỉ được lệch cao thấp rất ít, kẻo nghe như đàn lạc dây.
+const TUNED = new Set<SoundSet>(['bass-808'])
 
 // Tiếng báo chiếu, phong cấp vang lên ngay sau tiếng quân đặt xuống.
 const ACCENT_DELAY = 0.03
@@ -131,7 +138,10 @@ function start(set: SoundSet, name: SoundName, delay: number): AudioBufferSource
   const source = ctx.createBufferSource()
   source.buffer = buffer
   // Tiếng quân cờ mỗi lần cao thấp khác nhau chút xíu cho tự nhiên, không đều đều như máy.
-  if (name === 'move' || name === 'capture' || name === 'castle') source.playbackRate.value = 0.98 + Math.random() * 0.04
+  if (name === 'move' || name === 'capture' || name === 'castle') {
+    const spread = TUNED.has(set) ? 0.01 : 0.04
+    source.playbackRate.value = 1 - spread / 2 + Math.random() * spread
+  }
   source.connect(output)
   source.start(ctx.currentTime + delay)
   return source
