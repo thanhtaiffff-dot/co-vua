@@ -6,7 +6,7 @@ Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước 
 
 ### Chơi online với bạn bè qua link
 
-- Bấm **Chơi online** ở đầu trang, chọn thời gian và màu quân (**Trắng**, **Đen** hoặc **Ngẫu nhiên**), bấm **Tạo phòng**. Web đưa một link dạng `…/phong/x7k2m9ab` để gửi cho bạn bè (trên điện thoại có nút gửi thẳng qua Zalo, Messenger…).
+- Bấm **Chơi online** ở đầu trang, chọn thời gian và màu quân (**Trắng**, **Đen** hoặc **Ngẫu nhiên**), bấm **Tạo phòng**. Web đưa một link dạng `…/phong/x7k2m9ab` để gửi cho bạn bè (trên điện thoại có nút gửi thẳng qua Zalo, Messenger…). Trong lúc chờ, bàn cờ đã hiện sẵn và vẫn đổi được bộ tiếng ở đầu trang; chọn Ngẫu nhiên thì bạn bè vào phòng xong bàn cờ mới quay về đúng phía mình.
 - Bạn bè mở link, thấy lời mời, bấm **Vào chơi** là ván bắt đầu. Không cần tài khoản: mỗi máy tự có một mã bí mật riêng để máy chủ nhận ra ai là ai.
 - Chọn **Ngẫu nhiên** thì máy chủ bốc thăm lúc bạn bè vào phòng, không máy người chơi nào quyết được.
 - **Máy chủ làm trọng tài**: giữ bàn cờ và đồng hồ, kiểm tra mọi nước đi, tự xử hết giờ. Thời gian nước đi nằm trên đường truyền được trả lại cho người đi (tối đa 1 giây mỗi nước, giống lichess), nên mạng chậm không làm mất giờ oan.
