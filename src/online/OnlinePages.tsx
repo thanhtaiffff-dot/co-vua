@@ -7,7 +7,7 @@ import { Board } from '../components/Board'
 import { Piece } from '../components/Piece'
 import { TimeControlPicker } from '../components/TimeControlPicker'
 import { TopBar } from '../components/TopBar'
-import { DEFAULT_CONTROL, TIME_CONTROLS, describeControl, sameControl, type TimeControl } from '../game/clock'
+import { DEFAULT_CONTROL, TIME_CONTROLS, describeControl, formatClock, sameControl, type TimeControl } from '../game/clock'
 import { navigate } from '../router'
 import { playSound } from '../sound'
 import { loadSaved, save } from '../storage'
@@ -165,11 +165,34 @@ export function CreatePage({ backend }: { backend: Backend }) {
   )
 }
 
+// Thanh tên một chỗ ngồi lúc chờ: giống thanh người chơi trong ván, đồng hồ đứng yên ở mức giờ ban đầu.
+function SeatBar({ color, name, control, empty = false }: { color: ColorChoice; name: string; control: TimeControl | null; empty?: boolean }) {
+  return (
+    <div className="player">
+      <span className={`player__dot player__dot--${color}`} aria-hidden="true" />
+      <span className={`player__name${empty ? ' player__name--empty' : ''}`} role={empty ? 'status' : undefined}>
+        {name}
+      </span>
+      {empty && <span className="waiting__dot" aria-hidden="true" />}
+      {control && (
+        <span className="clock" role="timer" aria-label={`Đồng hồ của ${name}`}>
+          {formatClock(control.minutes * 60_000)}
+        </span>
+      )}
+    </div>
+  )
+}
+
+// Chủ phòng chờ bạn bè: thấy luôn bàn cờ như lúc vào ván (cả trên điện thoại), link mời nằm bên cạnh hoặc bên dưới.
+// Màu ngẫu nhiên thì tạm quay bàn về phía Trắng; bạn bè vào phòng, máy chủ bốc xong thì bàn tự quay đúng phía mình.
 function Waiting({ room, backend }: { room: RoomView; backend: Backend }) {
   const link = backend.link(room.id)
   const [copied, setCopied] = useState(false)
   const input = useRef<HTMLInputElement>(null)
   const canShare = typeof navigator.share === 'function' && !backend.demo
+  const bottom: Color = room.hostColor === 'b' ? 'b' : 'w'
+  const guestColor: ColorChoice = room.hostColor === 'random' ? 'random' : room.hostColor === 'w' ? 'b' : 'w'
+  const config = useMemo<Config>(() => ({ orientation: bottom === 'w' ? 'white' : 'black', viewOnly: true }), [bottom])
 
   useEffect(() => {
     if (!copied) return
@@ -196,36 +219,42 @@ function Waiting({ room, backend }: { room: RoomView; backend: Backend }) {
   }
 
   return (
-    <Lobby side={room.hostColor === 'b' ? 'b' : 'w'}>
-      <div className="card">
-        <h2 className="card__title">Phòng đã sẵn sàng</h2>
-        <p className="card__text">Gửi link này cho bạn bè. Bạn bè mở link là vào chơi được ngay, không cần tài khoản.</p>
-        <input ref={input} className="field__input share__link" value={link} readOnly onFocus={(e) => e.target.select()} aria-label="Link mời" />
-        <div className="share__actions">
-          {canShare && (
-            <button type="button" className="btn btn--primary" onClick={share}>
-              Gửi qua Zalo, Messenger…
-            </button>
-          )}
-          <button type="button" className={`btn${canShare ? '' : ' btn--primary'}`} onClick={copy}>
-            {copied ? 'Đã chép link!' : 'Chép link'}
-          </button>
+    <main className="table">
+      <section className="board-col">
+        <SeatBar color={guestColor} name="Đang chờ bạn bè…" control={room.control} empty />
+        <div className="board-frame">
+          <Board config={config} onMove={() => {}} />
         </div>
-        <p className="waiting" role="status">
-          <span className="waiting__dot" aria-hidden="true" />
-          Đang chờ bạn bè vào phòng…
-        </p>
-        {backend.demo && (
-          <div className="demo-note">
-            <p>Đây là bản chơi thử: link trên chưa gửi cho bạn bè được. Bấm nút dưới để một "bạn bè ảo" vào phòng đánh với bạn.</p>
-            <button type="button" className="btn btn--primary" onClick={() => backend.demo?.addFriend(room.id)}>
-              Cho bạn bè ảo vào phòng
+        <SeatBar color={room.hostColor} name="Bạn" control={room.control} />
+      </section>
+
+      <aside className="side">
+        <div className="card">
+          <h2 className="card__title">Gửi link mời bạn bè</h2>
+          <p className="card__text">Bạn bè mở link là vào chơi được ngay, không cần tài khoản.</p>
+          <input ref={input} className="field__input share__link" value={link} readOnly onFocus={(e) => e.target.select()} aria-label="Link mời" />
+          <div className="share__actions">
+            {canShare && (
+              <button type="button" className="btn btn--primary" onClick={share}>
+                Gửi qua Zalo, Messenger…
+              </button>
+            )}
+            <button type="button" className={`btn${canShare ? '' : ' btn--primary'}`} onClick={copy}>
+              {copied ? 'Đã chép link!' : 'Chép link'}
             </button>
           </div>
-        )}
-      </div>
-      <RoomFacts room={room} you />
-    </Lobby>
+          {backend.demo && (
+            <div className="demo-note">
+              <p>Đây là bản chơi thử: link trên chưa gửi cho bạn bè được. Bấm nút dưới để một "bạn bè ảo" vào phòng đánh với bạn.</p>
+              <button type="button" className="btn btn--primary" onClick={() => backend.demo?.addFriend(room.id)}>
+                Cho bạn bè ảo vào phòng
+              </button>
+            </div>
+          )}
+        </div>
+        <RoomFacts room={room} you />
+      </aside>
+    </main>
   )
 }
 
