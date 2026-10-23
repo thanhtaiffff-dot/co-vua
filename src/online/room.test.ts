@@ -266,10 +266,11 @@ describe('thư gửi lên máy chủ', () => {
     expect(parseClientMessage('{"t":"resign"}')).toEqual({ t: 'resign' })
     expect(parseClientMessage('{"t":"draw","yes":false}')).toEqual({ t: 'draw', yes: false })
     expect(parseClientMessage('{"t":"rematch","yes":true}')).toEqual({ t: 'rematch', yes: true })
+    expect(parseClientMessage('{"t":"takeback","yes":false}')).toEqual({ t: 'takeback', yes: false })
   })
 
   it('thư rác thì bỏ qua, không làm máy chủ báo lỗi', () => {
-    for (const junk of ['null', '42', '"hello"', '[]', '{}', 'không phải JSON', '{"t":"fly"}', '{"t":"draw","yes":"có"}']) {
+    for (const junk of ['null', '42', '"hello"', '[]', '{}', 'không phải JSON', '{"t":"fly"}', '{"t":"draw","yes":"có"}', '{"t":"takeback"}']) {
       expect(parseClientMessage(junk)).toBeNull()
     }
     expect(parseClientMessage(JSON.stringify({ t: 'hello', token: 'A'.repeat(50_000) }))).toBeNull()
@@ -355,5 +356,142 @@ describe('đầu hàng, xin hòa, tái đấu', () => {
     send(r, HOST, { t: 'rematch', yes: true })
     send(r, HOST, { t: 'rematch', yes: false })
     expect(view(r, GUEST, 0, BOTH).game!.rematch).toEqual({ w: false, b: false })
+  })
+})
+
+describe('xin đi lại', () => {
+  it('vừa đi xong thì xin lùi nước đó; đối thủ cho thì ván và đồng hồ quay về như trước nước đó', () => {
+    const r = started()
+    play(r, ['e2e4', 'e7e5', 'g1f3'], [0, 10_000, 15_000])
+    expect(send(r, HOST, { t: 'takeback', yes: true }, 16_000)).toBe(true)
+    expect(view(r, GUEST, 16_000, BOTH).game!.takeback).toBe('w')
+    expect(send(r, GUEST, { t: 'takeback', yes: true }, 17_000)).toBe(true)
+    const game = view(r, HOST, 17_000, BOTH).game!
+    expect(game.moves).toEqual(['e2e4', 'e7e5'])
+    expect(game.moveTimes).toEqual([null, 10_000])
+    // Đồng hồ như ngay sau nước của Đen, rồi Trắng nghĩ lại nước đó từ lúc được đi lại.
+    expect(game.clock).toEqual({ control: { minutes: 3, increment: 2 }, times: { w: 180_000, b: 172_000 }, running: 'w' })
+    expect(view(r, HOST, 20_000, BOTH).game!.clock!.times.w).toBe(177_000)
+    expect(game.takeback).toBeNull()
+  })
+
+  it('đang tới lượt mình mà xin thì lùi cả nước đối thủ vừa đi lẫn nước trước đó của mình', () => {
+    const r = started()
+    play(r, ['e2e4', 'e7e5', 'g1f3', 'b8c6'])
+    send(r, HOST, { t: 'takeback', yes: true })
+    send(r, GUEST, { t: 'takeback', yes: true })
+    expect(view(r, HOST, 0, BOTH).game!.moves).toEqual(['e2e4', 'e7e5'])
+  })
+
+  it('không cho, hay đi tiếp thay vì trả lời, thì lời xin mất; mỗi lượt chỉ xin một lần', () => {
+    const r = started()
+    play(r, ['e2e4', 'e7e5', 'g1f3'])
+    send(r, HOST, { t: 'takeback', yes: true })
+    expect(send(r, GUEST, { t: 'takeback', yes: false })).toBe(true)
+    let game = view(r, HOST, 0, BOTH).game!
+    expect([game.takeback, game.takebackDeclined, game.moves.length]).toEqual([null, 'w', 3])
+    expect(game.takebackAsked).toEqual({ w: true, b: false })
+    expect(send(r, HOST, { t: 'takeback', yes: true })).toBe(false) // bị từ chối rồi thì thôi, khỏi xin dồn dập
+    play(r, ['b8c6'])
+    game = view(r, HOST, 0, BOTH).game!
+    expect([game.takebackDeclined, game.takebackAsked]).toEqual([null, { w: false, b: false }])
+    // Nước mới đi rồi thì được xin lại; đối thủ đi tiếp thay vì trả lời thì lời xin mất.
+    expect(send(r, GUEST, { t: 'takeback', yes: true })).toBe(true)
+    play(r, ['f1c4'])
+    expect(view(r, HOST, 0, BOTH).game!.takeback).toBeNull()
+    expect(view(r, HOST, 0, BOTH).game!.moves.length).toBe(5)
+  })
+
+  it('rút lời xin được, nhưng lượt đó không xin lại được nữa', () => {
+    const r = started()
+    play(r, ['e2e4'])
+    send(r, HOST, { t: 'takeback', yes: true })
+    expect(send(r, HOST, { t: 'takeback', yes: false })).toBe(true)
+    const game = view(r, GUEST, 0, BOTH).game!
+    expect([game.takeback, game.takebackDeclined]).toEqual([null, null])
+    expect(send(r, HOST, { t: 'takeback', yes: true })).toBe(false)
+  })
+
+  it('chưa có nước của mình để lùi, người xem, hay ván đã hết thì không xin được', () => {
+    const r = started()
+    play(r, ['e2e4'])
+    expect(send(r, GUEST, { t: 'takeback', yes: true })).toBe(false) // Đen chưa đi nước nào
+    expect(send(r, 'third-token-cccccccccc', { t: 'takeback', yes: true })).toBe(false)
+    expect(send(r, GUEST, { t: 'takeback', yes: false })).toBe(false) // không có lời xin nào để từ chối
+    play(r, ['e7e5'])
+    send(r, HOST, { t: 'resign' })
+    expect(send(r, HOST, { t: 'takeback', yes: true })).toBe(false)
+  })
+
+  it('ván lùi lại thì lời xin hòa đang chờ cũng thôi', () => {
+    const r = started()
+    play(r, ['e2e4', 'e7e5', 'g1f3'])
+    send(r, HOST, { t: 'draw', yes: true })
+    send(r, HOST, { t: 'takeback', yes: true })
+    send(r, GUEST, { t: 'takeback', yes: true })
+    expect(view(r, GUEST, 0, BOTH).game!.drawOffer).toBeNull()
+  })
+})
+
+describe('đấu ván nữa: từ chối', () => {
+  function finished(): RoomData {
+    const r = started()
+    play(r, ['f2f3', 'e7e5', 'g2g4', 'd8h4'])
+    return r
+  }
+
+  it('bên kia từ chối thì lời mời mất, người mời không mời lại được nữa', () => {
+    const r = finished()
+    send(r, HOST, { t: 'rematch', yes: true })
+    expect(send(r, GUEST, { t: 'rematch', yes: false })).toBe(true)
+    const game = view(r, HOST, 0, BOTH).game!
+    expect(game.rematch).toEqual({ w: false, b: false })
+    expect(game.rematchDeclined).toBe('w')
+    expect(game.number).toBe(1)
+    expect(send(r, HOST, { t: 'rematch', yes: true })).toBe(false)
+  })
+
+  it('người đã từ chối đổi ý mời lại thì vẫn đấu tiếp được', () => {
+    const r = finished()
+    send(r, HOST, { t: 'rematch', yes: true })
+    send(r, GUEST, { t: 'rematch', yes: false })
+    expect(send(r, GUEST, { t: 'rematch', yes: true })).toBe(true)
+    expect(view(r, HOST, 0, BOTH).game!.rematchDeclined).toBeNull()
+    send(r, HOST, { t: 'rematch', yes: true })
+    expect(view(r, HOST, 0, BOTH).game!.number).toBe(2)
+  })
+
+  it('chưa ai mời thì không có gì để từ chối', () => {
+    const r = finished()
+    expect(send(r, GUEST, { t: 'rematch', yes: false })).toBe(false)
+  })
+})
+
+describe('thời gian nghĩ mỗi nước', () => {
+  it('máy chủ gửi thời gian nghĩ từng nước, đã trừ thời gian đường truyền', () => {
+    const r = started()
+    send(r, HOST, { t: 'move', uci: 'e2e4', ply: 0, lag: 0 }, 1_000)
+    send(r, GUEST, { t: 'move', uci: 'e7e5', ply: 1, lag: 400 }, 11_000)
+    expect(view(r, HOST, 11_000, BOTH).game!.moveTimes).toEqual([null, 9_600])
+  })
+
+  it('không tính giờ vẫn ghi thời gian nghĩ', () => {
+    const r = started('w', null)
+    play(r, ['e2e4', 'e7e5', 'g1f3'], [1_000, 6_000, 9_000])
+    expect(view(r, GUEST, 9_000, BOTH).game!.moveTimes).toEqual([null, 5_000, 3_000])
+  })
+
+  it('ván đang chơi dở từ bản trước (chưa ghi thời gian nghĩ) thì các nước cũ là "không biết", nước sau tính tiếp', () => {
+    const r = started('w', null)
+    play(r, ['e2e4', 'e7e5'], [1_000, 2_000])
+    const old = JSON.parse(JSON.stringify(r)) as RoomData
+    const clock = old.game!.clock as Partial<NonNullable<RoomData['game']>['clock']>
+    delete clock.spent
+    clock.turnStart = 0 // bản trước không ghi lúc bắt đầu lượt khi không tính giờ
+    delete (old.game as Partial<NonNullable<RoomData['game']>>).takebackAsked
+    const upgraded = upgradeRoom(old)
+    expect(upgraded.game!.takebackAsked).toEqual([false, false])
+    expect(send(upgraded, HOST, { t: 'move', uci: 'g1f3', ply: 2, lag: 0 }, 7_000)).toBe(true)
+    expect(view(upgraded, HOST, 7_000, BOTH).game!.moveTimes).toEqual([null, null, 5_000])
   })
 })

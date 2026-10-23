@@ -382,7 +382,7 @@
   flex: 1 1 120px;
 }
 
-/* Trong ván: bốn nút (xin đi lại, xin hòa, đầu hàng, lật bàn) xếp hai hàng */
+/* Trong ván: bốn nút (xin đi lại, xin hòa, đầu hàng, lật bàn) xếp hai hàng; hết ván chỉ còn nút lật bàn */
 .controls--online {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

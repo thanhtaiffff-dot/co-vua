@@ -1046,7 +1046,7 @@ body:has(.sound-sheet[open]) {
   display: flex;
   align-items: center;
   gap: 5px;
-  height: 18px;
+  height: 20px;
   min-width: 0;
   overflow: hidden;
   box-sizing: border-box;
@@ -1061,13 +1061,13 @@ body:has(.sound-sheet[open]) {
   position: static;
   display: inline-block;
   flex: none;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   will-change: auto;
 }
 
 .cg-wrap.player__captured piece + piece {
-  margin-left: -11px;
+  margin-left: -12px;
 }
 
 .player__score {
@@ -1075,7 +1075,7 @@ body:has(.sound-sheet[open]) {
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: 0.78rem;
-  line-height: 18px;
+  line-height: 20px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1226,6 +1226,13 @@ body:has(.sound-sheet[open]) {
 .status__hint--warn {
   color: var(--danger);
   font-weight: 600;
+}
+
+/* Nút chữ trong dòng nhắc (về ván đang chơi, huỷ nước đi trước): màu nhấn cho dễ thấy */
+.status__hint .link-button {
+  padding: 0;
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .status__clock {
@@ -1756,7 +1763,7 @@ body:has(.sound-sheet[open]) {
 }
 
 .result__actions .btn {
-  flex: 1 1 130px;
+  flex: 1 1 200px;
   text-align: center;
   text-decoration: none;
 }

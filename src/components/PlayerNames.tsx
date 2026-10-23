@@ -30,7 +30,7 @@ export function PlayerNames({ names, onChange }: Props) {
               className="field__input"
               value={names[color]}
               maxLength={NAME_LIMIT}
-              placeholder={`Tên người cầm ${label}`}
+              placeholder="Nhập tên"
               autoComplete="off"
               enterKeyHint="done"
               onChange={(e) => onChange({ ...names, [color]: e.target.value })}

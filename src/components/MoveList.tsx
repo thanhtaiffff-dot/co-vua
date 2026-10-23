@@ -75,7 +75,7 @@ export function MoveList({ sans, times, shown, onGo }: Props) {
   return (
     <section className="moves" aria-label="Các nước đã đi">
       <div className="moves__head">
-        <span className="moves__title">{shown < total ? `Đang xem nước ${shown}/${total}` : 'Nước đi'}</span>
+        <span className="moves__title">{shown < total ? `Nước ${shown}/${total}` : 'Nước đi'}</span>
         <div className="moves__nav">
           <NavButton icon="first" label="Về lúc bắt đầu ván" disabled={shown === 0} onClick={() => onGo(0)} />
           <NavButton icon="prev" label="Lùi một nước (phím ←)" disabled={shown === 0} onClick={() => onGo(shown - 1)} />

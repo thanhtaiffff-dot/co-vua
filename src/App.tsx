@@ -232,7 +232,14 @@ export default function App() {
           ) : (
             <div className={`status${status.kind === 'playing' && status.check ? ' status--check' : ''}`} role="status">
               <span className="status__text">{statusText(status, name)}</span>
-              {review.reviewing && <span className="status__hint">Đang xem lại thế cờ cũ. Bấm nút ▶| (sáng màu) để về ván đang chơi.</span>}
+              {review.reviewing && (
+                <span className="status__hint">
+                  Đang xem lại thế cờ cũ.{' '}
+                  <button type="button" className="link-button" onClick={() => review.go(moves.length)}>
+                    Về ván đang chơi
+                  </button>
+                </span>
+              )}
               {clock.control && moves.length > 0 && <span className="status__clock">{describeControl(clock.control)}</span>}
             </div>
           )}

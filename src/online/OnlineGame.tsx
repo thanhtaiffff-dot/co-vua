@@ -61,6 +61,13 @@ export function OnlineGame({ game, receivedAt, connection, send, lag }: Props) {
   // Các nước đi trước đang xếp hàng, đặt trong ván thứ `number` lúc thế cờ là `anchor`.
   const [queue, setQueue] = useState<{ number: number; anchor: string; premoves: Premove[] }>({ number: 0, anchor: '', premoves: NO_PREMOVES })
 
+  // Máy chủ báo tình hình mới mà đã có nước đang chờ (hay ván đã đổi) thì bỏ nước đang chờ, kẻo về sau ván lùi lại
+  // (hai bên đồng ý đi lại) đúng tới chỗ đó thì nó hiện lại.
+  const [seen, setSeen] = useState(game)
+  if (seen !== game) {
+    setSeen(game)
+    if (pending && (pending.number !== game.number || pending.ply !== game.moves.length)) setPending(null)
+  }
   // Nước đang chờ chỉ còn hiện khi máy chủ chưa báo về nước đó (máy chủ nhận rồi, hay ván đã hết, thì thôi).
   const live = pending && pending.number === game.number && pending.ply === game.moves.length && game.status.kind === 'playing' ? pending : null
   const moves = live ? [...game.moves, live.uci] : game.moves
@@ -367,7 +374,14 @@ export function OnlineGame({ game, receivedAt, connection, send, lag }: Props) {
                 </button>
               </span>
             )}
-            {review.reviewing && <span className="status__hint">Đang xem lại thế cờ cũ. Bấm nút ▶| (sáng màu) để về ván đang chơi.</span>}
+            {review.reviewing && (
+              <span className="status__hint">
+                Đang xem lại thế cờ cũ.{' '}
+                <button type="button" className="link-button" onClick={() => review.go(moves.length)}>
+                  Về ván đang chơi
+                </button>
+              </span>
+            )}
             <span className="status__clock">
               {game.number > 1 ? `Ván ${game.number} · ` : ''}
               {clock ? describeControl(clock.control) : 'Không tính giờ'}
@@ -417,7 +431,7 @@ export function OnlineGame({ game, receivedAt, connection, send, lag }: Props) {
         )}
         {!seated && over && match && <div className="card">{match}</div>}
 
-        <div className={`controls${seated && !over ? ' controls--online' : ''}`}>
+        <div className="controls controls--online">
           {seated && !over && (
             <>
               <button
