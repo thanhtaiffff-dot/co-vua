@@ -3,14 +3,14 @@
 // theo những gì máy chủ báo.
 import type { Color } from 'chess.js'
 import type { TimeControl, Times } from '../game/clock'
-import type { GameStatus, PlayedMove } from '../game/rules'
+import type { GameResult, PlayedMove } from '../game/rules'
 
 // Chủ phòng chọn cầm Trắng, Đen, hoặc để máy chủ bốc thăm lúc bạn bè vào phòng.
 export type ColorChoice = Color | 'random'
 
 // Kết quả ván online: ngoài các kiểu của ván chơi chung một máy còn có đầu hàng, hai bên đồng ý hòa,
 // và huỷ ván (một bên thôi khi chưa ai đi quá một nước, không tính thắng thua).
-export type OnlineStatus = GameStatus | { kind: 'resign'; winner: Color } | { kind: 'agreed' } | { kind: 'aborted' }
+export type OnlineStatus = GameResult
 
 // Gửi lên khi bấm "Tạo phòng". `token` là mã bí mật riêng của máy này, để máy chủ nhận ra chủ phòng.
 export type CreateRequest = { token: string; name: string; control: TimeControl | null; color: ColorChoice }
@@ -27,10 +27,15 @@ export type GameView = {
   players: Record<Color, PlayerView>
   score: Record<Color, number> // tỉ số cả trận của người đang cầm màu đó, tính từ ván đầu trong phòng
   moves: string[] // các nước đã đi, viết kiểu "e2e4", phong cấp thì thêm quân: "e7e8q"
+  moveTimes: (number | null)[] // thời gian nghĩ từng nước (ms, đã trừ thời gian đường truyền); null là không biết
   clock: ClockView | null // null: không tính giờ
   status: OnlineStatus
   drawOffer: Color | null // bên đang xin hòa
+  takeback: Color | null // bên đang xin đi lại
+  takebackDeclined: Color | null // bên vừa bị từ chối cho đi lại (tới nước sau thì thôi)
+  takebackAsked: Record<Color, boolean> // bên đã xin đi lại trong lượt này (mỗi lượt xin một lần)
   rematch: Record<Color, boolean> // bên nào đã bấm tái đấu
+  rematchDeclined: Color | null // bên vừa bị từ chối đấu ván nữa
 }
 
 export type RoomView = {
@@ -48,7 +53,8 @@ export type ClientMessage =
   | { t: 'move'; uci: string; ply: number; lag: number } // ply: nước thứ mấy; lag: thời gian đường truyền đi về (ms)
   | { t: 'resign' } // đầu hàng (chưa ai đi quá một nước thì là huỷ ván)
   | { t: 'draw'; yes: boolean } // xin hòa, đồng ý hòa; `yes: false` là từ chối hoặc rút lời xin
-  | { t: 'rematch'; yes: boolean } // xin tái đấu, đồng ý tái đấu; `yes: false` là thôi
+  | { t: 'takeback'; yes: boolean } // xin đi lại, đồng ý cho đi lại; `yes: false` là từ chối hoặc rút lời xin
+  | { t: 'rematch'; yes: boolean } // xin tái đấu, đồng ý tái đấu; `yes: false` là từ chối hoặc rút lời mời
 
 // Máy chủ báo lỗi rồi ngắt đường dây, máy người chơi thôi không nối lại:
 // - not-found: không có phòng này;
@@ -68,6 +74,12 @@ const ROOM_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'
 
 export function newRoomId(randomBytes: (n: number) => Uint8Array): string {
   return Array.from(randomBytes(8), (byte) => ROOM_ALPHABET[byte % ROOM_ALPHABET.length]).join('')
+}
+
+// Bên `by` được đi lại thì lùi mấy nửa nước: đang tới lượt đối thủ (mình vừa đi) thì lùi nước của mình; đang tới lượt
+// mình (đối thủ vừa đi) thì lùi cả nước của đối thủ lẫn nước của mình trước đó, để lại tới lượt mình.
+export function takebackPlies(moveCount: number, by: Color): number {
+  return (moveCount % 2 === 0 ? 'w' : 'b') === by ? 2 : 1
 }
 
 export function toUci(move: PlayedMove): string {
