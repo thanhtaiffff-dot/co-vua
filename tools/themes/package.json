@@ -1,0 +1,13 @@
+{
+  "name": "co-vua-themes",
+  "private": true,
+  "description": "Xưởng chụp ảnh quân cờ 3D, quân 2D theo chất liệu và bàn cờ cho web cờ vua (xem README.md)",
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "playwright": "1.56.1",
+    "three": "0.180.0",
+    "three-bvh-csg": "0.0.17",
+    "three-mesh-bvh": "0.9.1"
+  }
+}

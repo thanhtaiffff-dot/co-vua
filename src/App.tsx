@@ -236,7 +236,8 @@ export default function App() {
           <MoveList sans={chess.history()} />
 
           <p className="credits">
-            Luật cờ: chess.js · Bàn cờ: chessground của lichess · Quân cờ: bộ cburnett của Colin M.L. Burnett (GPL) · Tiếng thu thật: Kenney (CC0)
+            Luật cờ: chess.js · Bàn cờ: chessground của lichess · Quân cờ: bộ cburnett của Colin M.L. Burnett (GPL), quân 2D chất liệu dựng từ
+            bộ này; quân 3D, bàn chủ đề tự dựng · Tiếng thu thật: Kenney (CC0)
           </p>
         </aside>
       </main>

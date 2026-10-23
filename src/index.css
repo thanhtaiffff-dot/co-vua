@@ -107,8 +107,8 @@ body {
   text-wrap: balance;
 }
 
-/* Ô chọn bộ tiếng và nút loa, nằm bên phải đầu trang; điện thoại hẹp thì dòng chữ bên cạnh tự xuống hàng */
-.sound-controls {
+/* Nút chọn chủ đề, chọn bộ tiếng và nút loa, nằm bên phải đầu trang; điện thoại hẹp thì dòng chữ bên cạnh tự xuống hàng */
+.topbar__tools {
   margin-left: auto;
   flex: none;
   display: flex;
@@ -146,8 +146,9 @@ body {
   background: var(--surface-2);
 }
 
-/* Nút mở bảng chọn bộ tiếng. Màn hình rộng thì hiện thêm tên bộ đang dùng. */
-.sound-set {
+/* Nút mở bảng chọn chủ đề, bảng chọn bộ tiếng. Màn hình rộng thì hiện thêm chữ bên cạnh hình. */
+.sound-set,
+.theme-btn {
   width: auto;
   min-width: 40px;
   grid-auto-flow: column;
@@ -156,18 +157,51 @@ body {
   font: inherit;
 }
 
-.sound-set__name {
+.sound-set__name,
+.theme-btn__name {
   display: none;
   font-size: 0.85rem;
   font-weight: 600;
 }
 
+.theme-btn[aria-expanded='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Điện thoại hẹp (360px): thu gọn đầu trang cho vừa ba nút bên phải */
+@media (max-width: 389px) {
+  .topbar {
+    gap: 8px;
+  }
+
+  .brand {
+    font-size: 1.35rem;
+  }
+
+  .topbar__tools {
+    gap: 6px;
+  }
+
+  .topbar .icon-btn {
+    width: 38px;
+    min-width: 38px;
+    padding-inline: 0;
+  }
+
+  .topbar .mode-link {
+    padding-inline: 10px;
+  }
+}
+
 @media (min-width: 560px) {
-  .sound-set {
+  .sound-set,
+  .theme-btn {
     padding-inline: 10px 12px;
   }
 
-  .sound-set__name {
+  .sound-set__name,
+  .theme-btn__name {
     display: inline;
   }
 }
@@ -612,6 +646,261 @@ body:has(.sound-sheet[open]) {
   }
 }
 
+/* ---------- Bảng chọn chủ đề ---------- */
+/* Không làm tối trang, không che bàn cờ: chạm tới đâu thấy bàn cờ thật đổi tới đó. Điện thoại, máy tính bảng: tấm nằm
+   ở đáy màn hình. Máy tính (bàn cờ bên trái): bảng nổi ở góc phải, trên cột điều khiển. */
+.theme-panel {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 50;
+  width: 100%;
+  max-width: none;
+  max-height: 75vh;
+  max-height: 75dvh;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-width: 1px 0 0;
+  border-radius: 18px 18px 0 0;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 -4px 24px rgb(10 30 20 / 0.2);
+  overflow: hidden;
+}
+
+.theme-panel[open] {
+  display: flex;
+  flex-direction: column;
+  animation: sheet-up 220ms ease-out;
+}
+
+.theme-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 6px;
+}
+
+.theme-panel__heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.theme-panel__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.theme-panel__summary {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.theme-panel__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+
+.theme-panel__label {
+  margin: 0;
+  padding: 4px 16px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.theme-panel__note {
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* Hàng nút liền nhau như công tắc nhiều nấc: 2D | 3D, và các dáng quân 3D */
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.seg button {
+  min-width: 52px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.seg button[aria-pressed='true'] {
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.22);
+}
+
+.seg button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.seg--shapes {
+  display: flex;
+  margin: 2px 16px 6px;
+}
+
+.seg--shapes button {
+  flex: 1;
+  min-width: 0;
+  padding-inline: 6px;
+}
+
+/* Hàng nút chọn bộ quân, chọn bàn: vuốt ngang, mỗi nhóm chất liệu cách nhau một vạch mảnh */
+.theme-chips {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 2px 16px 10px;
+}
+
+.theme-chips__gap {
+  flex: 0 0 1px;
+  margin: 8px 2px;
+  background: var(--line);
+}
+
+.theme-chip {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 4px 14px 4px 6px;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.theme-chip:hover {
+  border-color: var(--line);
+}
+
+.theme-chip--on,
+.theme-chip--on:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.theme-chip input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.theme-chip:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.theme-chip img {
+  flex: none;
+  width: 32px;
+  height: 32px;
+}
+
+.theme-chip--board img {
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.14);
+}
+
+.theme-chip--pixel img {
+  image-rendering: pixelated;
+}
+
+/* Màn hình cảm ứng thì giấu thanh cuộn (vuốt là được); dùng chuột thì hiện thanh cuộn mảnh để kéo */
+/* Màn hình thấp: bỏ dòng tả cho bảng gọn, chừa chỗ cho bàn cờ */
+@media (max-height: 760px) {
+  .theme-panel__head {
+    padding-top: 10px;
+  }
+
+  .theme-panel__summary {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .theme-chips {
+    scrollbar-width: none;
+  }
+
+  .theme-chips::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (pointer: fine) {
+  .theme-chips {
+    scrollbar-width: thin;
+  }
+}
+
+@media (min-width: 900px) {
+  .theme-panel {
+    inset: 64px max(16px, calc((100% - 1040px) / 2)) auto auto;
+    width: 320px;
+    max-height: calc(100vh - 80px);
+    max-height: calc(100dvh - 80px);
+    border-width: 1px;
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .theme-panel[open] {
+    animation: sheet-pop 160ms ease-out;
+  }
+
+  /* Bảng đủ cao: xếp hết các nút thành nhiều hàng, khỏi phải cuộn ngang */
+  .theme-chips {
+    flex-wrap: wrap;
+    overflow: visible;
+    padding-bottom: 12px;
+  }
+
+  .theme-chips__gap {
+    display: none;
+  }
+}
+
 /* ---------- Bàn cờ ---------- */
 .table {
   width: 100%;
@@ -1035,6 +1324,7 @@ body:has(.sound-sheet[open]) {
 .icon-btn:focus-visible,
 .sound-sheet__close:focus-visible,
 .sound-event:focus-visible,
+.seg button:focus-visible,
 .tc__choice:focus-visible,
 .promotion__choice:focus-visible,
 .link-button:focus-visible,

@@ -1,17 +1,25 @@
 // Nút chọn bộ tiếng (hình nốt nhạc, cạnh nút loa) và bảng chọn mở ra khi bấm: điện thoại thì trượt lên từ cạnh
 // dưới, máy tính thì hiện giữa màn hình. Chạm một bộ là nghe thử một đoạn ngắn và dùng luôn bộ đó, giống chọn
-// nhạc chuông trên điện thoại. Hàng nút cuối bảng cho nghe riêng từng tiếng của bộ đang chọn.
+// nhạc chuông trên điện thoại. Dòng đầu "Theo chủ đề" cho tiếng tự đổi theo bộ quân đang dùng.
+// Hàng nút cuối bảng cho nghe riêng từng tiếng của bộ đang kêu.
 import { useEffect, useRef, useState } from 'react'
 import { playSample, stopSample, type Sample, type SoundSet } from '../sound'
 import { SET_SAMPLE, SOUND_EVENTS, SOUND_GROUPS, soundSetName } from '../soundCatalog'
 
+// "theme": tiếng cùng chất liệu với bộ quân đang dùng. "fixed": giữ bộ tiếng đã chọn, đổi quân không đụng tới.
+export type SoundMode = 'theme' | 'fixed'
+
 type Props = {
-  value: SoundSet
+  value: SoundSet // bộ đang kêu
+  mode: SoundMode
+  themeSet: SoundSet // bộ tiếng của bộ quân đang dùng
+  themeName: string // tên bộ quân đang dùng
   soundOn: boolean
   onChange: (set: SoundSet) => void
+  onFollowTheme: () => void
 }
 
-export function SoundSetPicker({ value, soundOn, onChange }: Props) {
+export function SoundSetPicker({ value, mode, themeSet, themeName, soundOn, onChange, onFollowTheme }: Props) {
   const dialog = useRef<HTMLDialogElement>(null)
   const list = useRef<HTMLDivElement>(null)
   // Đoạn đang kêu ("set:<bộ>" hoặc "event:<tiếng>"), để hiện hình sóng nhạc đúng chỗ.
@@ -51,6 +59,11 @@ export function SoundSetPicker({ value, soundOn, onChange }: Props) {
     listen(`set:${set}`, set, SET_SAMPLE)
   }
 
+  function follow() {
+    onFollowTheme()
+    listen('set:theme', themeSet, SET_SAMPLE)
+  }
+
   // Mở bảng, cuộn tới bộ đang dùng cho nằm giữa danh sách, rồi đặt con trỏ bàn phím lên đó.
   function open() {
     const box = dialog.current
@@ -70,8 +83,8 @@ export function SoundSetPicker({ value, soundOn, onChange }: Props) {
         className="icon-btn sound-set"
         onClick={open}
         aria-haspopup="dialog"
-        aria-label={`Bộ tiếng: ${name}. Bấm để đổi`}
-        title={`Bộ tiếng: ${name}`}
+        aria-label={`Bộ tiếng: ${name}${mode === 'theme' ? ' (theo chủ đề)' : ''}. Bấm để đổi`}
+        title={`Bộ tiếng: ${name}${mode === 'theme' ? ' (theo chủ đề)' : ''}`}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M9.2 17.4V7.6l11-2.6v10.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -114,58 +127,39 @@ export function SoundSetPicker({ value, soundOn, onChange }: Props) {
         </header>
 
         <div className="sound-sheet__list" ref={list}>
+          <div className="sound-group" role="group" aria-labelledby="sound-group-auto">
+            <span className="sound-group__name" id="sound-group-auto">
+              Tự đổi
+            </span>
+            <SoundItem
+              value="theme"
+              name="Theo chủ đề"
+              about={`Tiếng cùng chất liệu với bộ quân đang dùng. Quân ${themeName}: tiếng ${soundSetName(themeSet)}.`}
+              swatch={themeSet}
+              on={mode === 'theme'}
+              sounding={playing === 'set:theme'}
+              onPick={follow}
+              onReplay={() => listen('set:theme', themeSet, SET_SAMPLE)}
+            />
+          </div>
           {SOUND_GROUPS.map((group, index) => (
             <div key={group.name} className="sound-group" role="group" aria-labelledby={`sound-group-${index}`}>
               <span className="sound-group__name" id={`sound-group-${index}`}>
                 {group.name}
               </span>
-              {group.sets.map((info) => {
-                const on = info.id === value
-                const sounding = playing === `set:${info.id}`
-                return (
-                  <label key={info.id} className={`sound-item${on ? ' sound-item--on' : ''}`}>
-                    <input
-                      type="radio"
-                      name="sound-set"
-                      value={info.id}
-                      checked={on}
-                      onChange={() => choose(info.id)}
-                      // Chạm lại bộ đang dùng thì nghe lại (ô đã chọn rồi nên không có sự kiện đổi).
-                      onClick={() => {
-                        if (on) listen(`set:${info.id}`, info.id, SET_SAMPLE)
-                      }}
-                    />
-                    <span className={`swatch swatch--${info.id}`} aria-hidden="true" />
-                    <span className="sound-item__text">
-                      <span className="sound-item__name">{info.name}</span>
-                      <span className="sound-item__about">{info.about}</span>
-                    </span>
-                    <span className="sound-item__mark" aria-hidden="true">
-                      {sounding ? (
-                        <span className="sound-wave">
-                          <span />
-                          <span />
-                          <span />
-                        </span>
-                      ) : (
-                        on && (
-                          <svg viewBox="0 0 24 24">
-                            <circle cx="12" cy="12" r="11" fill="currentColor" />
-                            <path
-                              className="sound-item__tick"
-                              d="m7.2 12.4 3.2 3.2 6.4-6.6"
-                              fill="none"
-                              strokeWidth="2.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        )
-                      )}
-                    </span>
-                  </label>
-                )
-              })}
+              {group.sets.map((info) => (
+                <SoundItem
+                  key={info.id}
+                  value={info.id}
+                  name={info.name}
+                  about={info.about}
+                  swatch={info.id}
+                  on={mode === 'fixed' && info.id === value}
+                  sounding={playing === `set:${info.id}`}
+                  onPick={() => choose(info.id)}
+                  onReplay={() => listen(`set:${info.id}`, info.id, SET_SAMPLE)}
+                />
+              ))}
             </div>
           ))}
         </div>
@@ -192,5 +186,56 @@ export function SoundSetPicker({ value, soundOn, onChange }: Props) {
         </footer>
       </dialog>
     </>
+  )
+}
+
+type ItemProps = {
+  value: string
+  name: string
+  about: string
+  swatch: SoundSet
+  on: boolean
+  sounding: boolean
+  onPick: () => void
+  onReplay: () => void
+}
+
+// Một dòng trong bảng: ô chọn tròn (ẩn), ô màu chất liệu, tên, lời tả, và dấu tích (hay sóng nhạc khi đang kêu).
+function SoundItem({ value, name, about, swatch, on, sounding, onPick, onReplay }: ItemProps) {
+  return (
+    <label className={`sound-item${on ? ' sound-item--on' : ''}`}>
+      <input
+        type="radio"
+        name="sound-set"
+        value={value}
+        checked={on}
+        onChange={onPick}
+        // Chạm lại bộ đang dùng thì nghe lại (ô đã chọn rồi nên không có sự kiện đổi).
+        onClick={() => {
+          if (on) onReplay()
+        }}
+      />
+      <span className={`swatch swatch--${swatch}`} aria-hidden="true" />
+      <span className="sound-item__text">
+        <span className="sound-item__name">{name}</span>
+        <span className="sound-item__about">{about}</span>
+      </span>
+      <span className="sound-item__mark" aria-hidden="true">
+        {sounding ? (
+          <span className="sound-wave">
+            <span />
+            <span />
+            <span />
+          </span>
+        ) : (
+          on && (
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="11" fill="currentColor" />
+              <path className="sound-item__tick" d="m7.2 12.4 3.2 3.2 6.4-6.6" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )
+        )}
+      </span>
+    </label>
   )
 }
