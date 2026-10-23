@@ -228,9 +228,18 @@ export function OnlineGame({ game, receivedAt, connection, send, lag }: Props) {
     play(move)
   }
 
+  // Đặt thêm một nước đi trước vào cuối hàng. Tính theo hàng chờ mới nhất: nước đầu hàng có thể vừa được đi mà trang
+  // chưa kịp vẽ lại (khi đó thế cờ của hàng chờ đi trước thế cờ trang đang thấy một nước). Chỉ bỏ hàng cũ khi ván đã
+  // rẽ sang hướng khác: sang ván mới, hay ván bị lùi lại.
   function handlePremove(from: Key, to: Key) {
-    if (premoves.length >= MAX_PREMOVES) return
-    setQueue({ number: game.number, anchor: movesKey, premoves: [...premoves, { from: from as Square, to: to as Square }] })
+    const premove = { from: from as Square, to: to as Square }
+    setQueue((q) => {
+      const ahead = continues(q.anchor, movesKey) && q.anchor.length > movesKey.length
+      const same = q.number === game.number && (ahead || continues(movesKey, q.anchor))
+      const list = same ? q.premoves : NO_PREMOVES
+      if (list.length >= MAX_PREMOVES) return q
+      return { number: game.number, anchor: ahead ? q.anchor : movesKey, premoves: [...list, premove] }
+    })
   }
 
   function cancelPremoves() {
