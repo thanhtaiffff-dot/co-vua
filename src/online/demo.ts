@@ -1,8 +1,8 @@
 // Bản chơi thử chơi online khi chưa có máy chủ thật (ví dụ trang xem thử trên Claude): một máy chủ giả chạy ngay
 // trong trình duyệt, dùng đúng luật phòng của máy chủ thật (room.ts), thư đi thư về chậm như mạng thật,
-// và một "bạn bè ảo" tự đi quân để thử đi trước, xin hòa, tái đấu khi chỉ có một mình.
+// và một "bạn bè ảo" tự đi quân để thử đi trước, xin đi lại, xin hòa, đấu ván nữa khi chỉ có một mình.
 import { Chess, type Move } from 'chess.js'
-import { flagDue, checkFlag, createRoom, handle, seatOf, view, type RoomData } from './room'
+import { flagDue, checkFlag, createRoom, handle, seatOf, view, type RoomData, type Seat } from './room'
 import { fromUci, newRoomId, type ClientMessage, type ServerMessage } from './protocol'
 import type { Backend } from './backend'
 import type { ConnectionEvents } from './connection'
@@ -13,7 +13,13 @@ const BOT_TOKEN = 'ban-be-ao-demo-token'
 const VALUE: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 }
 
 type Client = { token: string | null; events: ConnectionEvents; open: boolean }
-type DemoRoom = { data: RoomData; clients: Set<Client>; flagTimer?: ReturnType<typeof setTimeout>; botTimer?: ReturnType<typeof setTimeout> }
+type DemoRoom = {
+  data: RoomData
+  clients: Set<Client>
+  flagTimer?: ReturnType<typeof setTimeout>
+  botTimer?: ReturnType<typeof setTimeout>
+  botTakebacks: { number: number; count: number } // bạn bè ảo đã xin đi lại mấy lần trong ván thứ `number`
+}
 
 const rooms = new Map<string, DemoRoom>()
 
@@ -54,7 +60,7 @@ function schedule(room: DemoRoom): void {
     }, Math.max(0, due - Date.now()) + 5)
   }
   clearTimeout(room.botTimer)
-  const action = botAction(room.data)
+  const action = botAction(room)
   if (action) {
     room.botTimer = setTimeout(() => {
       if (handle(room.data, BOT_TOKEN, action.message(), Date.now(), Math.random)) broadcast(room)
@@ -62,19 +68,46 @@ function schedule(room: DemoRoom): void {
   }
 }
 
-// Bạn bè ảo nghĩ gì: tới lượt thì đi, được mời hòa thì cân nhắc, được mời đấu tiếp thì đồng ý.
-function botAction(data: RoomData): { delay: number; message: () => ClientMessage } | null {
+// Bạn bè ảo nghĩ gì: tới lượt thì đi; được xin hòa, xin đi lại thì cân nhắc; hết ván thì rủ đấu tiếp. Thỉnh thoảng
+// nó cũng xin đi lại nước vừa đi, để thử nút "Cho đi lại", "Không cho". Các lựa chọn tính theo số nước đã đi chứ không
+// bốc thăm, để máy chủ giả gửi tình hình lại (có người vào xem…) thì nó không đổi ý.
+function botAction(room: DemoRoom): { delay: number; message: () => ClientMessage } | null {
+  const data = room.data
   const game = data.game
   const seat = seatOf(data, BOT_TOKEN)
   if (!game || seat === null) return null
+  const you: Seat = seat === 0 ? 1 : 0
   const color = seat === game.white ? 'w' : 'b'
-  if (game.end) return game.rematch[seat === 0 ? 1 : 0] && !game.rematch[seat] ? { delay: 1200, message: () => ({ t: 'rematch', yes: true }) } : null
+  if (game.end) {
+    if (game.rematch[seat]) return null
+    if (game.rematch[you]) return { delay: 1200, message: () => ({ t: 'rematch', yes: true }) }
+    // Bạn chưa mời thì một lúc sau nó tự rủ; bạn đã từ chối thì thôi.
+    if (game.rematchDeclined === seat) return null
+    return { delay: 4500, message: () => ({ t: 'rematch', yes: true }) }
+  }
   const chess = replay(game.moves.map((m) => fromUci(m)!))
-  if (game.drawOffer !== null && game.drawOffer !== seat) {
+  if (game.drawOffer === you) {
     const behind = materialDiff(chess)[color === 'w' ? 'b' : 'w'].score >= 2
     return { delay: 1500, message: () => ({ t: 'draw', yes: behind }) }
   }
-  if (chess.turn() !== color) return null
+  if (game.takeback === you) {
+    // Thường thì cho đi lại, cứ bốn lần thì có một lần không cho.
+    const yes = (game.number + game.moves.length) % 4 !== 0
+    return { delay: 1500, message: () => ({ t: 'takeback', yes }) }
+  }
+  if (chess.turn() !== color) {
+    // Vừa đi xong: thỉnh thoảng xin đi lại nước đó, mỗi ván tối đa hai lần.
+    const asked = room.botTakebacks.number === game.number ? room.botTakebacks.count : 0
+    const wants = game.moves.length >= 6 && (game.moves.length * 7 + game.number * 3 + asked * 5) % 10 < 2
+    if (!wants || asked >= 2 || game.takeback !== null || game.takebackAsked[seat]) return null
+    return {
+      delay: 1800,
+      message: () => {
+        room.botTakebacks = { number: game.number, count: asked + 1 }
+        return { t: 'takeback', yes: true }
+      },
+    }
+  }
   const bullet = (game.clock.control?.minutes ?? 10) <= 2
   const delay = (bullet ? 300 : 700) + Math.random() * (bullet ? 900 : 2200)
   const ply = game.moves.length
@@ -103,7 +136,7 @@ export const demoBackend: Backend = {
   async createRoom(request) {
     await new Promise((resolve) => setTimeout(resolve, LATENCY * 2))
     const id = newRoomId((n) => crypto.getRandomValues(new Uint8Array(n)))
-    rooms.set(id, { data: createRoom(id, request, Date.now()), clients: new Set() })
+    rooms.set(id, { data: createRoom(id, request, Date.now()), clients: new Set(), botTakebacks: { number: 0, count: 0 } })
     return id
   },
 

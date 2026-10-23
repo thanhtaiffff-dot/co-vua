@@ -225,7 +225,7 @@ function Waiting({ room, backend }: { room: RoomView; backend: Backend }) {
         <div className="board-frame">
           <Board config={config} onMove={() => {}} />
         </div>
-        <SeatBar color={room.hostColor} name="Bạn" control={room.control} />
+        <SeatBar color={room.hostColor} name={room.host.name || 'Bạn'} control={room.control} />
       </section>
 
       <aside className="side">

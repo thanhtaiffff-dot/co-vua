@@ -5,7 +5,7 @@ import type { Key } from '@lichess-org/chessground/types'
 import { Board } from './components/Board'
 import { MoveList, MoveStrip } from './components/MoveList'
 import { PlayerBar, type ClockFace } from './components/PlayerBar'
-import { PlayerNames, restoreNames, type Names } from './components/PlayerNames'
+import { PlayerNames } from './components/PlayerNames'
 import { PromotionPicker } from './components/PromotionPicker'
 import { ResultCard } from './components/ResultCard'
 import { TimeControlPicker } from './components/TimeControlPicker'
@@ -24,9 +24,10 @@ import {
   type PlayedMove,
 } from './game/rules'
 import { END_DELAY, playMove, playSound } from './sound'
+import { restoreNames, type Names } from './names'
 import { loadSaved, save } from './storage'
 import { useNow } from './useNow'
-import { useReview } from './useReview'
+import { showBoard, useReview } from './useReview'
 
 const COLOR_NAME: Record<Color, string> = { w: 'Trắng', b: 'Đen' }
 const SIDE: Record<Color, 'white' | 'black'> = { w: 'white', b: 'black' }
@@ -222,7 +223,10 @@ export default function App() {
               sans={sans}
               times={times}
               orientation={boardSide}
-              onReview={() => review.go(0)}
+              onReview={() => {
+                review.go(0)
+                showBoard()
+              }}
               hint={'Bấm "Ván mới" để chơi tiếp.'}
             />
           ) : (

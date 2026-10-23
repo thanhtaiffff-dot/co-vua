@@ -332,11 +332,18 @@
 }
 
 .match {
-  margin-top: 6px;
+  margin: 6px 0 0;
   padding-top: 6px;
   border-top: 1px solid var(--line);
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+/* Tỉ số đứng đầu thẻ mời đấu tiếp, hay một mình trong thẻ (người xem): khỏi đường kẻ phía trên */
+.match:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .match b {
@@ -354,6 +361,12 @@
   background: var(--accent-soft);
 }
 
+/* Lời xin của chính mình đang chờ trả lời: nhạt hơn lời xin của đối thủ */
+.offer--mine {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
 .offer__text {
   margin: 0;
   font-weight: 700;
@@ -367,6 +380,11 @@
 
 .offer__actions .btn {
   flex: 1 1 120px;
+}
+
+/* Trong ván: bốn nút (xin đi lại, xin hòa, đầu hàng, lật bàn) xếp hai hàng */
+.controls--online {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .online-tip {

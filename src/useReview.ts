@@ -40,3 +40,13 @@ export function useReview(total: number, onStep?: (ply: number) => void): Review
 
   return { shown, reviewing: shown < total, go }
 }
+
+// Đưa bàn cờ vào tầm nhìn. Điện thoại: thẻ kết quả nằm dưới bàn cờ, bấm "Xem lại từng nước" thì cuộn lên cho thấy bàn.
+export function showBoard(): void {
+  const board = document.querySelector('.board-col')
+  if (!board) return
+  const rect = board.getBoundingClientRect()
+  if (rect.top >= 0 && rect.bottom <= window.innerHeight) return
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  board.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' })
+}
