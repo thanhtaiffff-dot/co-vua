@@ -14,7 +14,7 @@ import { loadSaved, save } from '../storage'
 import type { Backend } from './backend'
 import { myName, myToken, saveMyName } from './identity'
 import { OnlineGame } from './OnlineGame'
-import { ROOM_ID, type ColorChoice, type RoomView } from './protocol'
+import { MAX_VISITORS, ROOM_ID, type ColorChoice, type RoomView } from './protocol'
 import { useRoom } from './useRoom'
 import './online.css'
 
@@ -304,15 +304,21 @@ function Invite({ room, send, ready }: { room: RoomView; send: (name: string) =>
   )
 }
 
-function Notice({ title, text, action = true }: { title: string; text: string; action?: boolean }) {
+// `action`: nút ở dưới; mặc định là tạo phòng mới, `retry` là nối lại phòng này (tải lại trang).
+function Notice({ title, text, action = 'create' }: { title: string; text: string; action?: 'create' | 'retry' | null }) {
   return (
     <main className="notice">
       <div className="card">
         <h2 className="card__title">{title}</h2>
         <p className="card__text">{text}</p>
-        {action && (
+        {action === 'create' && (
           <button type="button" className="btn btn--primary" onClick={() => navigate('/online')}>
             Tạo phòng mới
+          </button>
+        )}
+        {action === 'retry' && (
+          <button type="button" className="btn btn--primary" onClick={() => location.reload()}>
+            Thử lại
           </button>
         )}
       </div>
@@ -329,7 +335,7 @@ function Missing() {
 }
 
 function Room({ backend, id }: { backend: Backend; id: string }) {
-  const { room, receivedAt, status, missing, send, lag } = useRoom(backend, id)
+  const { room, receivedAt, status, error, send, lag } = useRoom(backend, id)
 
   // Ván bắt đầu (bạn bè vừa vào phòng, hay vừa đồng ý tái đấu) thì kêu tiếng "ván mới". Mở trang giữa ván thì thôi.
   const number = room ? (room.game?.number ?? 0) : null
@@ -340,8 +346,12 @@ function Room({ backend, id }: { backend: Backend; id: string }) {
     lastNumber.current = number
   }, [number])
 
-  if (missing) return <Missing />
-  if (!room) return <Notice title="Đang vào phòng…" text="Đang nối tới máy chủ." action={false} />
+  if (error === 'not-found') return <Missing />
+  if (error === 'full')
+    return <Notice title="Phòng đã đủ người xem" text={`Mỗi phòng cho tối đa ${MAX_VISITORS} người xem cùng lúc. Chờ có người rời phòng rồi thử lại nhé.`} action="retry" />
+  if (error === 'replaced')
+    return <Notice title="Phòng đang mở ở nơi khác" text="Bạn mở phòng này ở quá nhiều tab hoặc máy, nên tab này đã tạm ngắt. Bấm Thử lại để chơi tiếp ở đây." action="retry" />
+  if (!room) return <Notice title="Đang vào phòng…" text="Đang nối tới máy chủ." action={null} />
   if (room.game) return <OnlineGame game={room.game} receivedAt={receivedAt} connection={status} send={send} lag={lag} />
   if (room.role === 'host') return <Waiting room={room} backend={backend} />
   return <Invite room={room} ready={status === 'open'} send={(name) => send({ t: 'join', name })} />

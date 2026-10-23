@@ -13,7 +13,7 @@ export type Seat = 0 | 1
 export type SeatData = {
   token: string
   name: string
-  lag: number // thời gian đường truyền gần nhất của người này (ms), để không xử thua oan khi mạng chậm
+  lag: number // thời gian đường truyền người này khai ở nước gần nhất (ms), để không xử thua oan khi mạng chậm
 }
 
 export type GameData = {
@@ -25,6 +25,7 @@ export type GameData = {
   endedAt: number // lúc hết ván, để đồng hồ dừng đúng chỗ
   drawOffer: Seat | null
   rematch: [boolean, boolean]
+  lagQuota: [number, number] // quỹ bù giờ còn lại của từng ghế trong ván này (ms), xem LAG_QUOTA_GAIN
 }
 
 export type RoomData = {
@@ -37,9 +38,17 @@ export type RoomData = {
   updated: number
 }
 
-// Thời gian đường truyền được trả lại tối đa cho mỗi nước (giống lichess): mạng chậm hơn nữa thì người đi chịu.
-export const MAX_LAG_CREDIT = 1000
+// Bù thời gian đường truyền cho mạng chậm. Máy người chơi tự khai độ trễ mạng của mình, máy chủ không kiểm được
+// (kẻ gian chỉ cần cố tình trả lời chậm), nên mỗi người có một "quỹ bù giờ" cho mỗi ván, như lichess:
+// mỗi nước đi nạp thêm LAG_QUOTA_GAIN vào quỹ (tối đa LAG_QUOTA_MAX), nước nào mạng chậm thì rút ra bù, quỹ cạn
+// thì thôi. Mạng chậm thật vẫn được bù đủ, còn khai gian thì lời được nhiều nhất LAG_QUOTA_GAIN mỗi nước.
+// Lichess nạp 0,39 tới 1 giây tuỳ mức giờ; ở đây bạn bè cùng ở gần máy chủ nên nạp ít hơn.
+export const LAG_QUOTA_GAIN = 300
+export const LAG_QUOTA_START = 3 * LAG_QUOTA_GAIN
+export const LAG_QUOTA_MAX = 7 * LAG_QUOTA_GAIN
 const NAME_LIMIT = 20
+// Tên trong thư dài hơn mức này thì khỏi đọc (tên thật chỉ giữ 20 ký tự).
+const RAW_NAME_LIMIT = 200
 
 export function cleanName(name: unknown): string {
   if (typeof name !== 'string') return ''
@@ -60,11 +69,43 @@ export function parseCreateRequest(body: unknown): CreateRequest | null {
   if (color !== 'w' && color !== 'b' && color !== 'random') return null
   let tc: TimeControl | null = null
   if (control !== null) {
+    if (typeof control !== 'object') return null
     const known = TIME_CONTROLS.flatMap((group) => group.controls).find((c) => sameControl(c, control as TimeControl))
     if (!known) return null
     tc = { ...known }
   }
   return { token, name: cleanName(name), control: tc, color }
+}
+
+// Đọc thư gửi từ máy người chơi. Thư sai kiểu (không phải JSON, thiếu ô, sai loại dữ liệu, mã máy sai dạng)
+// thì trả về null để bỏ qua, thay vì làm máy chủ báo lỗi.
+export function parseClientMessage(text: string): ClientMessage | null {
+  let data: unknown
+  try {
+    data = JSON.parse(text)
+  } catch {
+    return null
+  }
+  if (typeof data !== 'object' || data === null) return null
+  const message = data as Record<string, unknown>
+  switch (message.t) {
+    case 'hello':
+      return validToken(message.token) ? { t: 'hello', token: message.token } : null
+    case 'join':
+      return typeof message.name === 'string' && message.name.length <= RAW_NAME_LIMIT ? { t: 'join', name: message.name } : null
+    case 'move': {
+      const { uci, ply, lag } = message
+      if (typeof uci !== 'string' || !fromUci(uci) || typeof ply !== 'number' || !Number.isInteger(ply)) return null
+      return { t: 'move', uci, ply, lag: typeof lag === 'number' && Number.isFinite(lag) ? lag : 0 }
+    }
+    case 'resign':
+      return { t: 'resign' }
+    case 'draw':
+    case 'rematch':
+      return typeof message.yes === 'boolean' ? { t: message.t, yes: message.yes } : null
+    default:
+      return null
+  }
 }
 
 export function createRoom(id: string, request: CreateRequest, now: number): RoomData {
@@ -93,7 +134,14 @@ function seatWith(game: GameData, color: Color): Seat {
 }
 
 function newGame(number: number, white: Seat, control: TimeControl | null): GameData {
-  return { number, white, moves: [], clock: newClock(control), end: null, endedAt: 0, drawOffer: null, rematch: [false, false] }
+  const lagQuota: [number, number] = [LAG_QUOTA_START, LAG_QUOTA_START]
+  return { number, white, moves: [], clock: newClock(control), end: null, endedAt: 0, drawOffer: null, rematch: [false, false], lagQuota }
+}
+
+// Phòng lưu từ bản trước (ván đang chơi dở lúc web lên bản mới) thiếu vài ô mới: điền giá trị đầu.
+export function upgradeRoom(room: RoomData): RoomData {
+  if (room.game && !Array.isArray(room.game.lagQuota)) room.game.lagQuota = [LAG_QUOTA_START, LAG_QUOTA_START]
+  return room
 }
 
 // Bạn bè bấm "Vào chơi": ngồi ghế còn trống, máy chủ bốc màu nếu chủ phòng chọn ngẫu nhiên, rồi bắt đầu ván.
@@ -127,13 +175,14 @@ function turnOf(game: GameData): Color {
 }
 
 // Lúc máy chủ xử bên đang tới lượt hết giờ: lúc đồng hồ về 0, cộng thêm thời gian đường truyền của người đó
-// (nước đi có thể đang trên đường tới). null khi đồng hồ không chạy.
+// (nước đi có thể đang trên đường tới), trong phạm vi quỹ bù giờ còn lại. null khi đồng hồ không chạy.
 export function flagDue(room: RoomData): number | null {
   const game = room.game
   if (!game || game.end) return null
   const turn = turnOf(game)
   const flag = flagTime(game.clock, turn)
-  return flag === null ? null : flag + room.seats[seatWith(game, turn)].lag
+  const seat = seatWith(game, turn)
+  return flag === null ? null : flag + Math.min(room.seats[seat].lag, game.lagQuota[seat])
 }
 
 // Bên đang tới lượt hết giờ chưa; hết rồi thì kết thúc ván (thua, hoặc hòa nếu đối thủ không đủ quân chiếu bí).
@@ -153,10 +202,12 @@ function move(room: RoomData, seat: Seat, uci: string, ply: number, lag: number,
   const played = fromUci(uci)
   if (!played || turnOf(game) !== color) return false
   const chess = board(game)
-  const credit = Math.min(MAX_LAG_CREDIT, Math.max(0, Number.isFinite(lag) ? lag : 0))
-  room.seats[seat].lag = credit
-  // Nước đi tới nơi khi đồng hồ đã về 0 (kể cả sau khi trả lại thời gian đường truyền) thì không nhận: hết giờ.
+  const reported = Math.min(LAG_QUOTA_MAX, Math.max(0, Number.isFinite(lag) ? lag : 0))
+  room.seats[seat].lag = reported
+  // Đồng hồ chưa chạy (không tính giờ, hoặc nước đầu của Trắng) thì khỏi bù, quỹ để dành.
   const flag = flagTime(game.clock, color)
+  const credit = flag === null ? 0 : Math.min(reported, game.lagQuota[seat])
+  // Nước đi tới nơi khi đồng hồ đã về 0 (kể cả sau khi trả lại thời gian đường truyền) thì không nhận: hết giờ.
   if (flag !== null && now - credit >= flag) {
     finish(room, game, timeoutStatus(chess, color), flag)
     return true
@@ -169,6 +220,7 @@ function move(room: RoomData, seat: Seat, uci: string, ply: number, lag: number,
   }
   game.moves.push(lan)
   game.clock = recordMove(game.clock, color, now, credit)
+  if (flag !== null) game.lagQuota[seat] = Math.min(LAG_QUOTA_MAX, game.lagQuota[seat] - credit + LAG_QUOTA_GAIN)
   // Đối thủ đang xin hòa mà mình đi tiếp thay vì đồng ý, coi như từ chối.
   if (game.drawOffer !== null && game.drawOffer !== seat) game.drawOffer = null
   const status = gameStatus(chess)
@@ -246,34 +298,38 @@ function clockView(game: GameData, now: number): ClockView | null {
   return { control: game.clock.control, times, running: flag !== null && !game.end ? turn : null }
 }
 
-// Những gì người có mã `token` được thấy (không lộ mã của ai). `online[ghế]`: người ngồi ghế đó đang mở trang.
-export function view(room: RoomData, token: string | null, now: number, online: [boolean, boolean]): RoomView {
-  const seat = seatOf(room, token)
+// Những gì từng người được thấy (không lộ mã của ai). `online[ghế]`: người ngồi ghế đó đang mở trang.
+// Phần chung (dựng lại bàn cờ, đồng hồ) tính một lần; máy chủ gửi cho cả phòng thì mỗi vai (chủ phòng, khách,
+// người xem) chỉ ráp thêm "mình là ai", không phải dựng lại cả ván cho từng người.
+export function viewsOf(room: RoomData, now: number, online: [boolean, boolean]): (seat: Seat | null) => RoomView {
   const game = room.game
   const name = (s: Seat) => room.seats[s]?.name ?? ''
-  let gameView: GameView | null = null
+  let shared: Omit<GameView, 'you'> | null = null
   if (game) {
     const byColor = <T,>(pick: (s: Seat) => T): Record<Color, T> =>
       game.white === 0 ? { w: pick(0), b: pick(1) } : { w: pick(1), b: pick(0) }
-    const status = game.end ?? gameStatus(board(game))
-    gameView = {
+    shared = {
       number: game.number,
-      you: seat === null ? null : colorOf(game, seat),
       players: byColor((s) => ({ name: name(s), online: online[s] })),
       score: byColor((s) => room.score[s]),
       moves: [...game.moves],
       clock: clockView(game, now),
-      status,
+      status: game.end ?? gameStatus(board(game)),
       drawOffer: game.drawOffer === null ? null : colorOf(game, game.drawOffer),
       rematch: byColor((s) => game.rematch[s]),
     }
   }
-  return {
+  return (seat) => ({
     id: room.id,
     control: room.control,
     host: { name: name(0), online: online[0] },
     hostColor: room.hostColor,
     role: seat === 0 ? 'host' : seat === 1 ? 'guest' : 'visitor',
-    game: gameView,
-  }
+    game: game && shared ? { ...shared, you: seat === null ? null : colorOf(game, seat) } : null,
+  })
+}
+
+// Những gì người có mã `token` được thấy.
+export function view(room: RoomData, token: string | null, now: number, online: [boolean, boolean]): RoomView {
+  return viewsOf(room, now, online)(seatOf(room, token))
 }

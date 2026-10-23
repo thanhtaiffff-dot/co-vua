@@ -1,5 +1,6 @@
 // Kiểm tra máy chủ phòng chạy thật: tạo phòng, hai "người chơi" nối WebSocket, đi một ván chiếu bí nhanh,
-// rồi tái đấu xem có đổi màu không. Cần chạy máy chủ trước: `npm run build && npx wrangler dev`.
+// rồi tái đấu xem có đổi màu không; sau đó thử các giới hạn chống phá ván (người xem, số tab, thư rác, gửi dồn dập).
+// Cần chạy máy chủ trước: `npm run build && npx wrangler dev`.
 // Cách dùng: node tools/online/check-server.mjs [địa chỉ, mặc định http://127.0.0.1:8787]
 const base = process.argv[2] ?? 'http://127.0.0.1:8787'
 const wsBase = base.replace(/^http/, 'ws')
@@ -42,11 +43,17 @@ function player(id) {
   }
 }
 
-const hostToken = 'host-' + crypto.randomUUID().replaceAll('-', '')
-const guestToken = 'guest-' + crypto.randomUUID().replaceAll('-', '')
+const newToken = (who) => who + '-' + crypto.randomUUID().replaceAll('-', '')
+const hostToken = newToken('host')
+const guestToken = newToken('guest')
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const bad = await fetch(`${base}/api/rooms`, { method: 'POST', body: JSON.stringify({ token: 'x' }) })
 if (bad.status !== 400) fail('gửi sai mà không bị từ chối: ' + bad.status)
+const noControl = await fetch(`${base}/api/rooms`, { method: 'POST', body: JSON.stringify({ token: hostToken, name: 'x', color: 'w' }) })
+if (noControl.status !== 400) fail('thiếu mức giờ mà không bị từ chối lịch sự: ' + noControl.status)
+const huge = await fetch(`${base}/api/rooms`, { method: 'POST', body: 'x'.repeat(100_000) })
+if (huge.status !== 413) fail('gửi thư quá dài mà không bị từ chối: ' + huge.status)
 
 const created = await fetch(`${base}/api/rooms`, {
   method: 'POST',
@@ -114,5 +121,75 @@ if (missing.code !== 'not-found') fail('phòng không có mà không báo')
 console.log('Phòng không tồn tại: báo đúng')
 
 host.ws.close()
+
+// Các giới hạn chống phá ván, trong một phòng mới không tính giờ.
+const limitsHost = newToken('host')
+const limitsGuest = newToken('guest')
+const limitsRoom = await fetch(`${base}/api/rooms`, {
+  method: 'POST',
+  body: JSON.stringify({ token: limitsHost, name: 'Tài', control: null, color: 'w' }),
+})
+const room2 = (await limitsRoom.json()).id
+const a = player(room2)
+await a.send({ t: 'hello', token: limitsHost })
+const b = player(room2)
+await b.send({ t: 'hello', token: limitsGuest })
+await b.send({ t: 'join', name: 'Nam' })
+await a.until((m) => m.room?.game, 'ván ở phòng thử giới hạn bắt đầu')
+
+// Thư rác (không phải thư, mã máy dài 50.000 ký tự, thư quá dài) thì bị bỏ qua, phòng vẫn chạy.
+for (const junk of ['null', '[]', JSON.stringify({ t: 'hello', token: 'A'.repeat(50_000) }), 'x'.repeat(5000)]) await a.send(junk)
+await a.send({ t: 'move', uci: 'e2e4', ply: 0, lag: 0 })
+await b.until((m) => m.room?.game?.moves.length === 1, 'phòng vẫn chạy sau thư rác')
+await a.until((m) => m.room?.game?.moves.length === 1, 'chủ phòng thấy nước vừa đi')
+console.log('Thư rác: bị bỏ qua, phòng vẫn chạy')
+
+// Chào lại lần nữa trên cùng đường dây thì máy chủ không gửi gì thêm cho ai.
+const before = a.states.length + b.states.length
+await a.send({ t: 'hello', token: limitsHost })
+await sleep(500)
+if (a.states.length + b.states.length !== before) fail('chào lại mà máy chủ vẫn báo cho cả phòng')
+console.log('Chào lại: bị bỏ qua')
+
+// Gửi dồn dập 60 nước đi sai: máy chủ chỉ trả lời khoảng 20 thư đầu, phần còn lại bị bỏ.
+const replies = b.states.length
+for (let i = 0; i < 60; i++) await b.send({ t: 'move', uci: 'a7a1', ply: 1, lag: 0 })
+await sleep(800)
+const answered = b.states.length - replies
+if (answered > 25) fail('gửi dồn dập mà máy chủ trả lời ' + answered + ' thư')
+console.log('Gửi dồn dập 60 thư: máy chủ chỉ trả lời', answered)
+
+// Người xem: đủ chỗ thì người tới sau thấy "đủ người xem"; người chơi thì lúc nào cũng vào được.
+const MAX_VISITORS = 8
+const crowd = []
+for (let i = 0; i < MAX_VISITORS; i++) {
+  const visitor = player(room2)
+  await visitor.send({ t: 'hello', token: newToken('viewer') })
+  await visitor.until((m) => m.t === 'state', 'người xem thứ ' + (i + 1) + ' vào được')
+  crowd.push(visitor)
+}
+const late = player(room2)
+await late.send({ t: 'hello', token: newToken('viewer') })
+const full = await late.until((m) => m.t === 'error', 'người xem thứ 9 bị từ chối')
+if (full.code !== 'full') fail('người xem thứ 9 nhận sai thư: ' + JSON.stringify(full))
+const back = player(room2)
+await back.send({ t: 'hello', token: limitsGuest })
+const seated = await back.until((m) => m.t === 'state', 'người chơi vẫn vào được khi đủ người xem')
+if (seated.room.role !== 'guest') fail('người chơi vào lại mà thành vai ' + seated.room.role)
+console.log(`Đủ ${MAX_VISITORS} người xem: người thứ 9 thấy "đủ người xem", người chơi vẫn vào được`)
+
+// Một người chơi mở tới tab thứ 5 thì tab cũ nhất bị ngắt (máy chủ giữ tối đa 4 tab mỗi người).
+const tabs = []
+for (let i = 0; i < 4; i++) {
+  const tab = player(room2)
+  await tab.send({ t: 'hello', token: limitsHost })
+  await tab.until((m) => m.t === 'state', 'tab thứ ' + (i + 2) + ' của chủ phòng')
+  tabs.push(tab)
+}
+const replaced = await a.until((m) => m.t === 'error', 'tab cũ nhất bị ngắt')
+if (replaced.code !== 'replaced') fail('tab cũ nhất nhận sai thư: ' + JSON.stringify(replaced))
+console.log('Tab thứ 5 của một người: tab cũ nhất bị ngắt')
+
+for (const c of [a, b, back, late, ...crowd, ...tabs]) c.ws.close()
 console.log('XONG: máy chủ chạy đúng')
 process.exit(0)

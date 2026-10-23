@@ -9,12 +9,13 @@ Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước 
 - Bấm **Chơi online** ở đầu trang, chọn thời gian và màu quân (**Trắng**, **Đen** hoặc **Ngẫu nhiên**), bấm **Tạo phòng**. Web đưa một link dạng `…/phong/x7k2m9ab` để gửi cho bạn bè (trên điện thoại có nút gửi thẳng qua Zalo, Messenger…). Trong lúc chờ, bàn cờ đã hiện sẵn và vẫn đổi được bộ tiếng ở đầu trang; chọn Ngẫu nhiên thì bạn bè vào phòng xong bàn cờ mới quay về đúng phía mình.
 - Bạn bè mở link, thấy lời mời, bấm **Vào chơi** là ván bắt đầu. Không cần tài khoản: mỗi máy tự có một mã bí mật riêng để máy chủ nhận ra ai là ai.
 - Chọn **Ngẫu nhiên** thì máy chủ bốc thăm lúc bạn bè vào phòng, không máy người chơi nào quyết được.
-- **Máy chủ làm trọng tài**: giữ bàn cờ và đồng hồ, kiểm tra mọi nước đi, tự xử hết giờ. Thời gian nước đi nằm trên đường truyền được trả lại cho người đi (tối đa 1 giây mỗi nước, giống lichess), nên mạng chậm không làm mất giờ oan.
+- **Máy chủ làm trọng tài**: giữ bàn cờ và đồng hồ, kiểm tra mọi nước đi, tự xử hết giờ. Thời gian nước đi nằm trên đường truyền được trả lại cho người đi, nên mạng chậm không làm mất giờ oan. Phần bù này lấy từ một **quỹ bù giờ** riêng mỗi ván như lichess: mỗi nước nạp thêm 0,3 giây (quỹ đầu 0,9 giây, tối đa 2,1 giây), nên ai khai gian "mạng chậm" cũng chỉ lời được tối đa 0,3 giây mỗi nước.
 - **Đi trước** (premove) như chess.com và lichess: lúc đối thủ đang nghĩ, kéo sẵn nước tiếp theo; đối thủ đi xong là nước đó tự đi ngay. Nước đó thành không hợp lệ (quân bị ăn, đường bị chắn) thì tự huỷ. Chạm ô trống để huỷ. Đi trước mà phong cấp thì tự lên Hậu.
 - Xin hòa, đầu hàng (bấm hai lần). Chưa ai đi quá một nước thì nút thành **Huỷ ván**, không tính thắng thua.
 - **Đấu ván nữa**: hai bên cùng bấm thì vào ván mới, tự đổi màu cho nhau, tỉ số cộng dồn.
 - Rớt mạng, khoá màn hình, tải lại trang: tự nối lại, vào đúng ghế cũ. Đối thủ mất kết nối thì hiện chữ "mất kết nối" cạnh tên.
-- Người thứ ba mở link khi phòng đã đủ hai người thì chỉ được xem.
+- Người thứ ba mở link khi phòng đã đủ hai người thì chỉ được xem. Mỗi phòng tối đa 8 người xem; người chơi thì lúc nào cũng vào được (mỗi người mở tối đa 4 tab hoặc máy cùng lúc, mở thêm thì tab cũ nhất tạm ngắt).
+- **Chống phá ván**: máy chủ bỏ qua thư rác, thư quá dài, thư gửi quá dày (quá 20 thư liền một lúc rồi 5 thư mỗi giây), nên người có link không làm đơ được ván hay làm đồng hồ bị trừ oan.
 - Tên tab báo "Tới lượt bạn" khi chuyển sang app khác.
 
 ### Chủ đề quân và bàn cờ

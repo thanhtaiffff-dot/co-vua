@@ -12,10 +12,16 @@ function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } })
 }
 
+// Yêu cầu tạo phòng thật chỉ khoảng 150 ký tự; dài hơn mức này thì khỏi đọc.
+const MAX_BODY = 2000
+
 async function createRoom(request: Request, env: Env): Promise<Response> {
+  if (Number(request.headers.get('Content-Length') ?? 0) > MAX_BODY) return json({ error: 'Dữ liệu gửi lên quá dài' }, 413)
   let body: unknown
   try {
-    body = await request.json()
+    const text = await request.text()
+    if (text.length > MAX_BODY) return json({ error: 'Dữ liệu gửi lên quá dài' }, 413)
+    body = JSON.parse(text)
   } catch {
     return json({ error: 'Dữ liệu gửi lên không đọc được' }, 400)
   }
