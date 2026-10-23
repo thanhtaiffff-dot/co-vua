@@ -23,6 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 dist-single
+dist-demo
 
 # Cloudflare
 .wrangler

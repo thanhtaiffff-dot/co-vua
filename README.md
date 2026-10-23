@@ -2,7 +2,22 @@
 
 Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước nào chạy được mới sang bước sau.
 
-## Đang có gì (bước 1: hai người chơi chung một máy)
+## Đang có gì
+
+### Chơi online với bạn bè qua link
+
+- Bấm **Chơi online** ở đầu trang, chọn thời gian và màu quân (**Trắng**, **Đen** hoặc **Ngẫu nhiên**), bấm **Tạo phòng**. Web đưa một link dạng `…/phong/x7k2m9ab` để gửi cho bạn bè (trên điện thoại có nút gửi thẳng qua Zalo, Messenger…).
+- Bạn bè mở link, thấy lời mời, bấm **Vào chơi** là ván bắt đầu. Không cần tài khoản: mỗi máy tự có một mã bí mật riêng để máy chủ nhận ra ai là ai.
+- Chọn **Ngẫu nhiên** thì máy chủ bốc thăm lúc bạn bè vào phòng, không máy người chơi nào quyết được.
+- **Máy chủ làm trọng tài**: giữ bàn cờ và đồng hồ, kiểm tra mọi nước đi, tự xử hết giờ. Thời gian nước đi nằm trên đường truyền được trả lại cho người đi (tối đa 1 giây mỗi nước, giống lichess), nên mạng chậm không làm mất giờ oan.
+- **Đi trước** (premove) như chess.com và lichess: lúc đối thủ đang nghĩ, kéo sẵn nước tiếp theo; đối thủ đi xong là nước đó tự đi ngay. Nước đó thành không hợp lệ (quân bị ăn, đường bị chắn) thì tự huỷ. Chạm ô trống để huỷ. Đi trước mà phong cấp thì tự lên Hậu.
+- Xin hòa, đầu hàng (bấm hai lần). Chưa ai đi quá một nước thì nút thành **Huỷ ván**, không tính thắng thua.
+- **Đấu ván nữa**: hai bên cùng bấm thì vào ván mới, tự đổi màu cho nhau, tỉ số cộng dồn.
+- Rớt mạng, khoá màn hình, tải lại trang: tự nối lại, vào đúng ghế cũ. Đối thủ mất kết nối thì hiện chữ "mất kết nối" cạnh tên.
+- Người thứ ba mở link khi phòng đã đủ hai người thì chỉ được xem.
+- Tên tab báo "Tới lượt bạn" khi chuyển sang app khác.
+
+### Hai người chơi chung một máy
 
 - Kéo thả hoặc bấm để đi quân, chấm gợi ý các ô đi được.
 - Đủ luật cờ: nhập thành, bắt tốt qua đường, phong cấp (tự chọn Hậu, Xe, Tượng, Mã), chiếu, chiếu bí.
@@ -29,10 +44,13 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 | --- | --- |
 | `npm install` | Tải các thư viện về (chỉ cần chạy lần đầu) |
 | `npm run dev` | Mở web ở chế độ làm việc, sửa code là trang tự cập nhật |
-| `npm test` | Chạy các bài kiểm tra luật cờ |
+| `npm run dev:server` | Chạy máy chủ phòng chơi online trên máy (mở thêm một Terminal, để chạy song song với `npm run dev`) |
+| `npm test` | Chạy các bài kiểm tra luật cờ, đồng hồ, âm thanh, phòng chơi online |
+| `npm run test:server` | Kiểm tra máy chủ phòng chạy thật (cần `npm run dev:server` đang chạy) |
 | `npm run lint` | Soát lỗi code thường gặp |
 | `npm run build` | Đóng gói web để đưa lên mạng (ra thư mục `dist`) |
-| `npm run build:single` | Gộp cả web vào một file HTML trong `dist-single`, bấm đúp là chơi |
+| `npm run build:single` | Gộp cả web vào một file HTML trong `dist-single`, bấm đúp là chơi (phần online thì đánh với "bạn bè ảo") |
+| `npm run build:demo` | Như trên nhưng mở sẵn trang chơi online, ra thư mục `dist-demo` (dùng làm bản chơi thử) |
 | `npm run sounds` | Tạo lại các file âm thanh trong `src/sounds` (cần cài [ffmpeg](https://ffmpeg.org)) |
 
 ## Code nằm ở đâu
@@ -41,20 +59,30 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 | --- | --- |
 | `src/game/rules.ts` | Luật cờ: đi được đâu, ai thắng, hòa kiểu gì, điểm quân |
 | `src/game/clock.ts` | Đồng hồ: các mức giờ, trừ giờ, cộng giờ sau mỗi nước, đi lại thì giờ quay về |
-| `src/**/*.test.ts` | Bài kiểm tra tự động cho luật cờ, đồng hồ và âm thanh |
+| `src/**/*.test.ts` | Bài kiểm tra tự động cho luật cờ, đồng hồ, âm thanh và phòng chơi online |
+| `src/online/room.ts` | Luật của phòng chơi online: ai ngồi ghế nào, bốc màu, nhận nước đi, đồng hồ trên máy chủ, hòa, đầu hàng, tái đấu |
+| `src/online/protocol.ts` | Các loại thư qua lại giữa máy người chơi và máy chủ |
+| `src/online/OnlinePages.tsx`, `OnlineGame.tsx` | Trang tạo phòng, chờ bạn bè, lời mời, và ván cờ online |
+| `src/online/connection.ts` | Đường dây WebSocket tới máy chủ: tự nối lại, đo độ trễ mạng |
+| `src/online/demo.ts` | Máy chủ giả và bạn bè ảo cho bản chơi thử một file |
+| `worker/` | Máy chủ trên Cloudflare: `index.ts` nhận yêu cầu tạo phòng, `room-server.ts` là "trọng tài" của mỗi phòng (Durable Object) |
+| `tools/online/check-server.mjs` | Kiểm tra máy chủ chạy thật bằng hai người chơi giả |
 | `src/sound.ts` | Âm thanh: nước nào kêu tiếng gì, mở khoá tiếng ở lần chạm đầu, đổi bộ tiếng, tắt/bật tiếng, nghe thử |
 | `src/soundCatalog.ts` | Tên, nhóm, lời tả của từng bộ tiếng và các đoạn nghe thử trong bảng chọn |
 | `src/sounds/` | Các file âm thanh (MP3), mỗi bộ tiếng một thư mục |
 | `tools/sounds/` | Code tạo ra file âm thanh, kèm các tiếng thu gốc của Kenney |
 | `src/components/Board.tsx` | Bàn cờ (bọc thư viện chessground) |
 | `src/components/` | Các mảnh giao diện khác: thanh người chơi kèm đồng hồ, chọn thời gian, chọn quân phong cấp, danh sách nước đi, bảng chọn bộ tiếng |
-| `src/App.tsx` | Ghép mọi thứ lại, giữ trạng thái ván cờ |
+| `src/Root.tsx`, `src/router.ts` | Chọn trang theo địa chỉ: `/` chơi một máy, `/online` tạo phòng, `/phong/<mã>` phòng chơi |
+| `src/App.tsx` | Trang chơi chung một máy, giữ trạng thái ván cờ |
 | `src/index.css` | Màu sắc, bố cục, chế độ sáng/tối |
-| `wrangler.jsonc` | Cài đặt để Cloudflare build và đưa web lên mạng |
+| `wrangler.jsonc` | Cài đặt để Cloudflare build và đưa web lên mạng, khai báo máy chủ phòng chơi |
 
 ## Web lên mạng thế nào
 
-Web chạy trên Cloudflare Workers, gói miễn phí. Mỗi lần một Pull Request được Merge vào nhánh `main`, Cloudflare tự tải code về, chạy `npm run build` rồi đưa bản mới lên, mất khoảng 1–2 phút. Pull Request chưa Merge thì web chính không bị đụng tới. Muốn chơi thử trước khi Merge thì dùng bản một file (`npm run build:single`).
+Web chạy trên Cloudflare Workers, gói miễn phí. Gồm hai phần: các file của trang web (Cloudflare gửi thẳng cho trình duyệt), và một máy chủ nhỏ trong thư mục `worker/` chỉ chạy cho các địa chỉ `/api/...` của phần chơi online. Mỗi phòng chơi là một **Durable Object**: một "trọng tài" riêng trên Cloudflare, cả hai người chơi cùng nối tới, giữ bàn cờ và đồng hồ, lưu lại được kể cả khi máy chủ khởi động lại. Gói miễn phí cho dùng Durable Object loại lưu bằng SQLite, đủ cho hội bạn chơi. Phòng bỏ không 30 ngày thì tự xoá.
+
+Mỗi lần một Pull Request được Merge vào nhánh `main`, Cloudflare tự tải code về, chạy `npm run build` rồi đưa bản mới lên, mất khoảng 1–2 phút. Pull Request chưa Merge thì web chính không bị đụng tới. Muốn chơi thử trước khi Merge thì dùng bản một file (`npm run build:single`).
 
 Cloudflare chỉ biết có lần Merge mới khi ứng dụng **Cloudflare Workers and Pages** trên GitHub được quyền đọc kho `co-vua`. Nếu Merge xong vài phút mà web vẫn như cũ:
 
@@ -65,7 +93,7 @@ Cloudflare chỉ biết có lần Merge mới khi ứng dụng **Cloudflare Work
 ## Lộ trình
 
 1. **Bàn cờ chơi chung một máy** (xong).
-2. Chơi online: tạo phòng, gửi link cho bạn, đồng hồ đếm giờ do máy chủ giữ.
+2. **Chơi online**: tạo phòng, gửi link cho bạn, chọn màu, đồng hồ do máy chủ giữ, đi trước, xin hòa, đầu hàng, đấu ván nữa (xong đợt đầu). Còn: xử thắng khi đối thủ bỏ đi quá lâu, xem lại ván, chat nhanh.
 3. Tài khoản, điểm Elo, tên miền riêng.
 4. Máy phân tích Stockfish, cài như ứng dụng trên điện thoại, bàn cờ 3D.
 
