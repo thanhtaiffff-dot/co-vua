@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { MoveFacts } from './game/rules'
 import { moveSounds, SOUND_NAMES, SOUND_SETS, soundUrl } from './sound'
+import { SET_SAMPLE, SOUND_EVENTS, SOUND_LIST } from './soundCatalog'
 
 const none: MoveFacts = { capture: false, castle: false, promotion: false, check: false, mate: false }
 const names = (facts: Partial<MoveFacts>) => moveSounds({ ...none, ...facts }).map(([name]) => name)
@@ -38,5 +39,24 @@ describe('các bộ tiếng', () => {
 
   it('tiếng của mỗi bộ nằm trong thư mục của bộ đó', () => {
     expect(soundUrl('8bit', 'lowTime')).toMatch(/8bit\/low-time/)
+  })
+})
+
+describe('bảng chọn tiếng', () => {
+  it('bộ nào cũng có mặt đúng một lần, có tên và lời tả', () => {
+    expect(SOUND_LIST.map((info) => info.id).toSorted()).toEqual([...SOUND_SETS].toSorted())
+    for (const info of SOUND_LIST) {
+      expect(info.name, info.id).not.toBe('')
+      expect(info.about, info.id).not.toBe('')
+    }
+  })
+
+  it('nghe riêng được mọi tiếng, theo đúng thứ tự thời gian', () => {
+    const heard = new Set(SOUND_EVENTS.flatMap((event) => event.sample.map(([name]) => name)))
+    expect([...heard].toSorted()).toEqual([...SOUND_NAMES].toSorted())
+    for (const sample of [SET_SAMPLE, ...SOUND_EVENTS.map((event) => event.sample)]) {
+      const times = sample.map(([, at]) => at)
+      expect(times).toEqual(times.toSorted((a, b) => a - b))
+    }
   })
 })

@@ -8,6 +8,7 @@
   --line: #c5d1cb;
   --accent: #1c6aa0;
   --accent-ink: #ffffff;
+  --accent-soft: #dbe8f2;
   --danger: #b02a22;
   --scrim: rgb(10 18 15 / 0.55);
   --shadow: 0 1px 2px rgb(10 30 20 / 0.12), 0 8px 24px rgb(10 30 20 / 0.14);
@@ -33,6 +34,7 @@
     --line: #2a3833;
     --accent: #78bbe8;
     --accent-ink: #08202f;
+    --accent-soft: #18303e;
     --danger: #f0857c;
     --scrim: rgb(0 0 0 / 0.6);
     --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.45);
@@ -49,6 +51,7 @@
   --line: #2a3833;
   --accent: #78bbe8;
   --accent-ink: #08202f;
+  --accent-soft: #18303e;
   --danger: #f0857c;
   --scrim: rgb(0 0 0 / 0.6);
   --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.45);
@@ -153,37 +156,20 @@ body {
   background: var(--surface-2);
 }
 
-/* Ô chọn thật của trình duyệt nằm trong suốt, phủ kín nút nốt nhạc. Màn hình rộng thì hiện thêm tên bộ. */
+/* Nút mở bảng chọn bộ tiếng. Màn hình rộng thì hiện thêm tên bộ đang dùng. */
 .sound-set {
-  position: relative;
   width: auto;
   min-width: 40px;
   grid-auto-flow: column;
   gap: 6px;
   padding-inline: 9px;
+  font: inherit;
 }
 
 .sound-set__name {
   display: none;
   font-size: 0.85rem;
   font-weight: 600;
-}
-
-.sound-set select {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  /* Chữ nhỏ hơn 16px thì iPhone tự phóng to trang khi bấm vào ô chọn */
-  font-size: 16px;
-}
-
-/* Viền khi chọn bằng bàn phím. Để riêng một khối: trình duyệt cũ không hiểu :has() thì chỉ bỏ khối này. */
-.sound-set:has(select:focus-visible) {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 @media (min-width: 560px) {
@@ -193,6 +179,414 @@ body {
 
   .sound-set__name {
     display: inline;
+  }
+}
+
+/* ---------- Bảng chọn bộ tiếng ---------- */
+/* Máy tính: hộp giữa màn hình. Điện thoại: tấm trượt lên từ cạnh dưới (xem khối @media bên dưới). */
+.sound-sheet {
+  width: min(460px, calc(100% - 32px));
+  max-width: none;
+  max-height: min(760px, calc(100vh - 48px));
+  max-height: min(760px, calc(100dvh - 48px));
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.sound-sheet[open] {
+  display: flex;
+  flex-direction: column;
+  animation: sheet-pop 160ms ease-out;
+}
+
+/* Màu viết thẳng: trình duyệt cũ không cho vùng tối này dùng biến màu */
+.sound-sheet::backdrop {
+  background: rgb(8 14 12 / 0.55);
+}
+
+/* Bảng đang mở thì trang phía sau không cuộn theo */
+body:has(.sound-sheet[open]) {
+  overflow: hidden;
+}
+
+.sound-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 16px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sound-sheet__heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.sound-sheet__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.sound-sheet__hint {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.sound-sheet__close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: -4px -6px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.sound-sheet__close svg {
+  width: 20px;
+  height: 20px;
+}
+
+.sound-sheet__list {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 10px 12px;
+}
+
+.sound-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sound-group__name {
+  padding: 6px 12px 2px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Mỗi bộ là một ô chọn tròn thật của trình duyệt (ẩn đi), nên phím mũi tên và trình đọc màn hình dùng được */
+.sound-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 8px 10px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.sound-item:hover {
+  background: var(--surface-2);
+}
+
+.sound-item--on,
+.sound-item--on:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.sound-item input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sound-item:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sound-item__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sound-item__name {
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.sound-item__about {
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.sound-item__mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  color: var(--accent);
+}
+
+.sound-item__mark svg {
+  width: 24px;
+  height: 24px;
+}
+
+.sound-item__tick {
+  stroke: var(--accent-ink);
+}
+
+/* Ba vạch nhấp nhô: bộ đó đang kêu */
+.sound-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+}
+
+.sound-wave span {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: currentColor;
+  animation: sound-wave 0.8s ease-in-out infinite;
+}
+
+.sound-wave span:nth-child(2) {
+  animation-delay: -0.27s;
+}
+
+.sound-wave span:nth-child(3) {
+  animation-delay: -0.53s;
+}
+
+@keyframes sound-wave {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes sheet-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* Ô màu chất liệu của từng bộ: màu cố định, giống nhau ở cả chế độ sáng và tối */
+.swatch {
+  --foam: rgb(255 255 255 / 0.85);
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.14);
+}
+
+.swatch--wood {
+  background:
+    radial-gradient(ellipse 34% 18% at 68% 62%, rgb(96 50 18 / 0.35) 0 40%, transparent 72%),
+    repeating-linear-gradient(97deg, transparent 0 4px, rgb(96 50 18 / 0.2) 4px 5px),
+    linear-gradient(160deg, #dcaa70, #9e6430);
+}
+
+.swatch--steel {
+  background: linear-gradient(135deg, #eef2f5, #8f9ba5 45%, #eef2f5 56%, #5f6b75);
+}
+
+.swatch--bronze {
+  background: linear-gradient(135deg, #f1c47e, #b5743a 45%, #f1c47e 56%, #7d4a20);
+}
+
+.swatch--cast-iron {
+  background:
+    radial-gradient(rgb(255 255 255 / 0.12) 1px, transparent 1.5px) 0 0 / 5px 5px,
+    linear-gradient(135deg, #5e6266, #2b2e31);
+}
+
+.swatch--crystal {
+  background:
+    linear-gradient(135deg, transparent 30%, var(--foam) 31% 37%, transparent 38%),
+    linear-gradient(135deg, #e9f6fb, #a9d6ea 50%, #6fb0cf);
+}
+
+.swatch--glass-marbles {
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 30%, var(--foam) 0 12%, transparent 13%),
+    conic-gradient(from 20deg, #2f86c8, #9fe0c4, #2f86c8, #f0b44c, #2f86c8);
+}
+
+.swatch--thick-glass {
+  background:
+    linear-gradient(90deg, transparent 72%, #3f8a72 72% 100%),
+    linear-gradient(160deg, #d5ece2, #79b9a2);
+}
+
+.swatch--polished-stone {
+  background:
+    linear-gradient(115deg, transparent 38%, rgb(90 90 105 / 0.35) 39% 41%, transparent 42%),
+    linear-gradient(55deg, transparent 62%, rgb(90 90 105 / 0.35) 63% 64%, transparent 65%),
+    linear-gradient(160deg, #f5f3ee, #d6d2ca);
+}
+
+.swatch--pebbles {
+  background:
+    radial-gradient(ellipse 22% 17% at 30% 34%, #8d8579 95%, transparent),
+    radial-gradient(ellipse 19% 15% at 68% 30%, #b4aa9b 95%, transparent),
+    radial-gradient(ellipse 24% 18% at 55% 70%, #6c6862 95%, transparent),
+    radial-gradient(ellipse 14% 11% at 22% 74%, #b4aa9b 95%, transparent),
+    #e3d6bd;
+}
+
+.swatch--stone-table {
+  background:
+    radial-gradient(rgb(0 0 0 / 0.35) 1px, transparent 1.5px) 0 0 / 6px 6px,
+    radial-gradient(rgb(255 255 255 / 0.3) 1px, transparent 1.5px) 3px 3px / 7px 7px,
+    linear-gradient(160deg, #8e9293, #5c6163);
+}
+
+/* Ô vuông to như điểm ảnh trên máy chơi game đời cũ */
+.swatch--8bit {
+  background: repeating-conic-gradient(#306230 0 25%, #8bac0f 0 50%) 0 0 / 20px 20px;
+}
+
+.swatch--bubble {
+  background:
+    radial-gradient(circle at 40% 36%, var(--foam) 0 7%, transparent 8%),
+    radial-gradient(circle at 50% 50%, transparent 0 46%, var(--foam) 48% 53%, transparent 55%),
+    linear-gradient(160deg, #78c0e6, #2a74a8);
+}
+
+/* Nghe riêng từng tiếng của bộ đang chọn: luôn nằm ở đáy bảng, cuộn danh sách không mất */
+.sound-sheet__foot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.sound-sheet__foot-title {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.sound-sheet__foot-title b {
+  color: var(--ink);
+}
+
+.sound-events {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.sound-event {
+  min-height: 36px;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.sound-event:hover {
+  border-color: var(--accent);
+}
+
+.sound-event--on,
+.sound-event--on:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+@media (max-width: 559px) {
+  .sound-sheet {
+    width: 100%;
+    max-height: 92vh;
+    max-height: 92dvh;
+    margin: auto 0 0;
+    border-width: 1px 0 0;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .sound-sheet[open] {
+    animation-name: sheet-up;
+    animation-duration: 220ms;
+  }
+
+  .sound-sheet__foot {
+    padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Màn hình thấp: hàng nút nghe riêng gọn lại thành một dòng vuốt ngang, nhường chỗ cho danh sách */
+@media (max-height: 640px) {
+  .sound-events {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .sound-event {
+    padding-inline: 12px;
   }
 }
 
@@ -617,6 +1011,8 @@ body {
 
 .btn:focus-visible,
 .icon-btn:focus-visible,
+.sound-sheet__close:focus-visible,
+.sound-event:focus-visible,
 .tc__choice:focus-visible,
 .promotion__choice:focus-visible,
 .link-button:focus-visible,
@@ -739,5 +1135,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+    animation: none !important;
   }
 }

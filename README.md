@@ -8,7 +8,14 @@ Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước 
 - Đủ luật cờ: nhập thành, bắt tốt qua đường, phong cấp (tự chọn Hậu, Xe, Tượng, Mã), chiếu, chiếu bí.
 - Tự xử hòa: hết nước đi (pat), không đủ quân chiếu bí, lặp thế cờ 3 lần, luật 50 nước.
 - Đồng hồ đếm giờ: chọn từ 1 tới 30 phút mỗi bên, có loại được cộng giờ sau mỗi nước (3 | 2, 15 | 10…), hoặc không tính giờ. Đồng hồ chạy từ lúc Trắng đi nước đầu. Hết giờ là thua, trừ khi đối thủ không còn đủ quân để chiếu bí thì hòa.
-- Âm thanh cho mọi việc: đi quân, ăn quân, nhập thành, chiếu, phong cấp, hết ván, hòa, ván mới, đồng hồ sắp hết giờ. Có 3 bộ tiếng để chọn ở nút nốt nhạc góc trên: **Gỗ** (toàn tiếng gõ gỗ thu thật: quân đặt xuống bàn, chiếu gõ thêm "cộc cộc", thắng là tiếng vua đổ), **8-bit** (máy chơi game đời cũ), **Bong bóng** (tiếng "bóp" tròn, êm). Nút loa bên cạnh để tắt/bật. Máy nào nhớ lựa chọn của máy đó. iPhone gạt sang chế độ im lặng thì web cũng im.
+- Âm thanh cho mọi việc: đi quân, ăn quân, nhập thành, chiếu, phong cấp, hết ván, hòa, ván mới, đồng hồ sắp hết giờ. Có 12 bộ tiếng, mỗi bộ chỉ có tiếng của đúng một chất liệu:
+  - **Gỗ** (mặc định): quân gỗ trên bàn gỗ, chiếu gõ thêm "cộc cộc", thắng là tiếng vua đổ.
+  - **Kim loại**: Thép, Đồng, Gang.
+  - **Thủy tinh**: Pha lê, Bi ve, Kính dày.
+  - **Đá**: Cẩm thạch, Sỏi, Bàn đá.
+  - **Vui nhộn**: 8-bit (máy chơi game đời cũ), Bong bóng (tiếng bọt nước "bóp" tròn, êm).
+
+  Bấm nút nốt nhạc góc trên để mở bảng chọn: chạm một bộ là nghe thử một đoạn ngắn (đi quân, ăn quân, chiếu, thắng) và dùng luôn bộ đó; hàng nút cuối bảng cho nghe riêng từng tiếng. Nút loa bên cạnh để tắt/bật. Máy nào nhớ lựa chọn của máy đó. iPhone gạt sang chế độ im lặng thì web cũng im.
 - Danh sách nước đi kiểu ký hiệu cờ (e4, Nf3, O-O…), quân đã ăn và chênh lệch điểm quân.
 - Đi lại, ván mới (bấm hai lần để chắc chắn), lật bàn, tự xoay bàn theo lượt.
 - Tải lại trang vẫn giữ ván đang chơi.
@@ -35,11 +42,12 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 | `src/game/rules.ts` | Luật cờ: đi được đâu, ai thắng, hòa kiểu gì, điểm quân |
 | `src/game/clock.ts` | Đồng hồ: các mức giờ, trừ giờ, cộng giờ sau mỗi nước, đi lại thì giờ quay về |
 | `src/**/*.test.ts` | Bài kiểm tra tự động cho luật cờ, đồng hồ và âm thanh |
-| `src/sound.ts` | Âm thanh: nước nào kêu tiếng gì, mở khoá tiếng ở lần chạm đầu, đổi bộ tiếng, tắt/bật tiếng |
+| `src/sound.ts` | Âm thanh: nước nào kêu tiếng gì, mở khoá tiếng ở lần chạm đầu, đổi bộ tiếng, tắt/bật tiếng, nghe thử |
+| `src/soundCatalog.ts` | Tên, nhóm, lời tả của từng bộ tiếng và các đoạn nghe thử trong bảng chọn |
 | `src/sounds/` | Các file âm thanh (MP3), mỗi bộ tiếng một thư mục |
-| `tools/sounds/` | Code tạo ra file âm thanh, kèm tiếng gỗ gốc của Kenney |
+| `tools/sounds/` | Code tạo ra file âm thanh, kèm các tiếng thu gốc của Kenney |
 | `src/components/Board.tsx` | Bàn cờ (bọc thư viện chessground) |
-| `src/components/` | Các mảnh giao diện khác: thanh người chơi kèm đồng hồ, chọn thời gian, chọn quân phong cấp, danh sách nước đi |
+| `src/components/` | Các mảnh giao diện khác: thanh người chơi kèm đồng hồ, chọn thời gian, chọn quân phong cấp, danh sách nước đi, bảng chọn bộ tiếng |
 | `src/App.tsx` | Ghép mọi thứ lại, giữ trạng thái ván cờ |
 | `src/index.css` | Màu sắc, bố cục, chế độ sáng/tối |
 | `wrangler.jsonc` | Cài đặt để Cloudflare build và đưa web lên mạng |
@@ -70,5 +78,5 @@ Code dự án phát hành theo **GPL-3.0-or-later** (xem file `LICENSE`), vì b�
 - [chess.js](https://github.com/jhlywa/chess.js): luật cờ, giấy phép BSD-2-Clause.
 - [chessground](https://github.com/lichess-org/chessground): bàn cờ của lichess, giấy phép GPL-3.0-or-later.
 - Bộ quân cburnett: Colin M.L. Burnett, giấy phép GPLv2+.
-- Tiếng gỗ: [Kenney](https://kenney.nl), bộ Impact Sounds và Casino Audio, giấy phép CC0 (tặng cho mọi người, ai dùng cũng được). Bộ 8-bit và Bong bóng do code của dự án tự tạo.
+- Tiếng thu thật: [Kenney](https://kenney.nl), bộ Impact Sounds, Casino Audio và Interface Sounds, giấy phép CC0 (tặng cho mọi người, ai dùng cũng được). Dùng cho bộ Gỗ, các bộ Kim loại, Thủy tinh, và tiếng nền xi măng trong bộ Bàn đá. Tiếng đá gõ đá, bộ 8-bit và Bong bóng do code của dự án tự dựng.
 - Phông chữ Be Vietnam Pro và JetBrains Mono qua Google Fonts, giấy phép SIL Open Font License.
