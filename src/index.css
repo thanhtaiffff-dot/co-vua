@@ -902,6 +902,36 @@ body:has(.sound-sheet[open]) {
 }
 
 /* ---------- Bàn cờ ---------- */
+/* Máy tính: bàn cờ to vừa màn hình (theo chiều cao, hay theo chiều ngang nếu cửa sổ hẹp), nhân với cỡ người chơi tự chỉnh
+   bằng nút Phóng to, Thu nhỏ (--board-zoom, xem boardView.ts). Bên phải bàn là cột nút chỉnh bàn cờ, rồi tới cột điều khiển.
+   Đầu trang và cả khối bàn cờ cùng rộng --page-w, nằm giữa màn hình. 200px là chiều cao dành cho đầu trang và hai thanh
+   người chơi; 52px là lề hai bên cộng chỗ cho thanh cuộn.
+   Cột chat bên trái bàn cờ (chơi online) chỉ cần đặt --chat-w trên .app và thêm cột đầu cho lưới .table: bàn cờ tự thu lại
+   cho vừa. --chat-space là chỗ cột chat chiếm kể cả khe với bàn cờ (không có cột chat thì không có khe). */
+@media (min-width: 900px) {
+  .app {
+    --chat-w: 0px;
+    --side-w: 340px;
+    --tools-w: 40px;
+    --table-gap: 28px;
+    --chat-space: calc(var(--chat-w) + min(var(--chat-w), var(--table-gap)));
+    --beside-board: calc(var(--chat-space) + 8px + var(--tools-w) + var(--table-gap) + var(--side-w));
+    --board-fit: min(100vh - 200px, 100vw - 52px - var(--beside-board));
+    --board: max(320px, var(--board-zoom, 1) * var(--board-fit));
+    --page-w: calc(var(--board) + var(--beside-board));
+  }
+
+  @supports (height: 100dvh) {
+    .app {
+      --board-fit: min(100dvh - 200px, 100vw - 52px - var(--beside-board));
+    }
+  }
+
+  .topbar {
+    max-width: var(--page-w);
+  }
+}
+
 .table {
   width: 100%;
   max-width: 1040px;
@@ -914,19 +944,49 @@ body:has(.sound-sheet[open]) {
 
 @media (min-width: 900px) {
   .table {
-    grid-template-columns: minmax(0, 1fr) 300px;
-    gap: 28px;
+    max-width: var(--page-w);
+    grid-template-columns: calc(var(--board) + 8px + var(--tools-w)) var(--side-w);
+    gap: var(--table-gap);
   }
 }
 
+/* Điện thoại: bàn cờ rộng hết màn hình (máy nằm ngang thì theo chiều cao), dưới bàn là dải nước đi và hàng nút. */
 .board-col {
   width: 100%;
-  max-width: min(640px, calc(100dvh - 200px));
+  max-width: calc(100vh - 200px);
+  max-width: calc(100dvh - 200px);
   min-width: min(100%, 280px);
   justify-self: center;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* Máy tính: cột trái là thanh người chơi, bàn cờ, thanh người chơi; cột phải sát mép bàn là các nút chỉnh bàn cờ. */
+@media (min-width: 900px) {
+  .board-col {
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: var(--board) var(--tools-w);
+    gap: 8px;
+    align-items: start;
+  }
+
+  .board-col > * {
+    grid-column: 1;
+  }
+
+  .board-col > .board-under {
+    display: contents;
+  }
+
+  .board-col .board-tools {
+    grid-column: 2;
+    grid-row: 2;
+    flex-direction: column;
+  }
 }
 
 .board-frame {
@@ -943,6 +1003,72 @@ body:has(.sound-sheet[open]) {
   height: 100%;
 }
 
+/* ---------- Nút chỉnh bàn cờ: lật bàn, phóng to, thu nhỏ, toàn màn hình ---------- */
+.board-under {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.board-under > .strip {
+  flex: 1;
+  min-width: 0;
+}
+
+.board-tools {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.board-tool {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.board-tool svg {
+  width: 20px;
+  height: 20px;
+}
+
+.board-tool:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.board-tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.board-tool:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Điện thoại: bàn cờ đã rộng hết màn hình nên không cần phóng to, thu nhỏ; nút cao bằng dải nước đi bên cạnh. */
+@media (max-width: 899px) {
+  .board-tool--zoom {
+    display: none;
+  }
+
+  .board-tool {
+    width: 44px;
+    height: 46px;
+  }
+}
+
 /* Ô cờ vẽ bằng CSS từ hai màu token: đổi theme bàn cờ sau này chỉ cần đổi hai màu */
 .board-frame cg-board {
   background-color: var(--board-light);
@@ -957,6 +1083,12 @@ body:has(.sound-sheet[open]) {
   font-weight: 700;
   line-height: 1.3;
   opacity: 1;
+}
+
+@media (min-width: 900px) {
+  .cg-wrap coords {
+    font-size: clamp(9px, var(--board) / 60, 13px);
+  }
 }
 
 .cg-wrap coords.ranks {
@@ -990,6 +1122,7 @@ body:has(.sound-sheet[open]) {
 }
 
 /* ---------- Thanh người chơi ---------- */
+/* Tên ở dòng trên, quân đã ăn được ở dòng dưới. Dòng quân luôn giữ chỗ, để thanh không nhảy lúc ăn quân đầu tiên. */
 .player {
   display: flex;
   align-items: center;
@@ -1020,32 +1153,61 @@ body:has(.sound-sheet[open]) {
   background: #1d1d1b;
 }
 
-.player__name {
-  font-weight: 700;
+.player__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
+.player__line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.player__name {
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+/* Quân cùng loại xếp chồng lên nhau, các loại cách nhau một chút (như chess.com) */
 .cg-wrap.player__captured {
   position: static;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  box-sizing: border-box;
+  gap: 5px;
+  height: 20px;
   min-width: 0;
   overflow: hidden;
+  box-sizing: border-box;
+}
+
+.player__group {
+  display: inline-flex;
+  flex: none;
 }
 
 .cg-wrap.player__captured piece {
   position: static;
   display: inline-block;
+  flex: none;
   width: 20px;
   height: 20px;
-  margin-right: -5px;
   will-change: auto;
 }
 
+.cg-wrap.player__captured piece + piece {
+  margin-left: -12px;
+}
+
 .player__score {
+  flex: none;
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
+  line-height: 20px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1188,17 +1350,21 @@ body:has(.sound-sheet[open]) {
   color: var(--danger);
 }
 
-.status__score {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 2rem;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-
 .status__hint {
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.status__hint--warn {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* Nút chữ trong dòng nhắc (về ván đang chơi, huỷ nước đi trước): màu nhấn cho dễ thấy */
+.status__hint .link-button {
+  padding: 0;
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .status__clock {
@@ -1281,7 +1447,8 @@ body:has(.sound-sheet[open]) {
 
 .controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
@@ -1392,18 +1559,95 @@ body:has(.sound-sheet[open]) {
   background: var(--accent-ink);
 }
 
-/* ---------- Danh sách nước đi ---------- */
+/* ---------- Xem lại nước cũ ---------- */
+/* Bàn cờ đang hiện thế cờ cũ: viền màu nhấn quanh bàn, để không tưởng nhầm là ván đang chơi */
+.board-frame--review {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.nav-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.nav-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.nav-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.nav-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* Nút về thế cờ hiện tại sáng lên khi đang xem thế cờ cũ */
+.nav-btn--live {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.nav-btn:focus-visible,
+.moves__move:focus-visible,
+.strip__move:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ---------- Cột nước đi (máy tính) ---------- */
 .moves {
-  max-height: 240px;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 8px 4px;
+  overflow: hidden;
+}
+
+.moves__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.moves__title {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.moves__nav {
+  display: flex;
+  gap: 4px;
+}
+
+.moves__scroll {
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 6px 4px;
 }
 
 .moves__empty {
-  margin: 4px 12px;
+  margin: 4px 10px;
   color: var(--muted);
   font-size: 0.9rem;
 }
@@ -1419,9 +1663,10 @@ body:has(.sound-sheet[open]) {
 
 .moves__row {
   display: grid;
-  grid-template-columns: 3ch 1fr 1fr;
-  gap: 8px;
-  padding: 2px 10px;
+  grid-template-columns: 3.5ch 1fr 1fr;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
   border-radius: 6px;
 }
 
@@ -1433,9 +1678,590 @@ body:has(.sound-sheet[open]) {
   color: var(--muted);
 }
 
-.moves__san--last {
+.moves__move {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 6px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.moves__move:hover {
+  background: var(--accent-soft);
+}
+
+.moves__move--on,
+.moves__move--on:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.moves__san {
+  font-weight: 600;
+}
+
+/* Thời gian nghĩ: chữ nhỏ, nhạt, sát bên phải ô */
+.moves__time {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.moves__move--on .moves__time {
+  color: inherit;
+  opacity: 0.85;
+}
+
+/* ---------- Dải nước đi ngay dưới bàn cờ (điện thoại) ---------- */
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.strip__list {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0 2px;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.strip__list::-webkit-scrollbar {
+  display: none;
+}
+
+.strip__item {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+.strip__number {
+  padding-left: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.strip__move {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 40px;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.strip__move--on {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.strip__san {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.strip__time {
+  min-height: 1em;
+  font-size: 0.66rem;
+  color: var(--muted);
+}
+
+.strip__move--on .strip__time {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.strip .nav-btn {
+  width: 36px;
+  height: 36px;
+}
+
+/* Điện thoại, máy tính bảng dọc: dải ngang dưới bàn cờ. Màn hình rộng: cột nước đi bên phải. */
+@media (min-width: 900px) {
+  .strip {
+    display: none;
+  }
+}
+
+@media (max-width: 899px) {
+  .moves {
+    display: none;
+  }
+}
+
+/* ---------- Thẻ kết quả khi hết ván ---------- */
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--muted);
+  border-radius: 12px;
+}
+
+.result--win {
+  border-left-color: var(--accent);
+}
+
+.result__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cg-wrap.result__badge {
+  position: static;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 44px;
+}
+
+.cg-wrap.result__badge piece {
+  position: static;
+  display: inline-block;
+  width: 44px;
+  height: 44px;
+  will-change: auto;
+}
+
+.cg-wrap.result__badge--draw piece {
+  width: 34px;
+  height: 34px;
+}
+
+.cg-wrap.result__badge--draw piece + piece {
+  margin-left: -12px;
+  margin-top: 10px;
+}
+
+.result__heading {
+  min-width: 0;
+}
+
+.result__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.result__reason {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.result__actions .btn {
+  flex: 1 1 200px;
+  text-align: center;
+  text-decoration: none;
+}
+
+/* ---------- Thống kê ván (trong thẻ kết quả, đóng sẵn) ---------- */
+.stats {
+  margin: 0 -16px -14px;
+  border-top: 1px solid var(--line);
+}
+
+.stats__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 0 0 12px 12px;
+}
+
+.stats__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.stats__toggle svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.stats__chevron {
+  margin-left: auto;
+  color: var(--muted);
+  transition: transform 160ms ease;
+}
+
+.stats[open] .stats__chevron {
+  transform: rotate(180deg);
+}
+
+.stats__toggle:hover {
+  color: var(--accent);
+}
+
+.stats__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.stats__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px 14px;
+}
+
+.stats__summary {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Bảng so hai bên như thống kê trận bóng đá: số của Trắng sát trái, tên mục ở giữa, số của Đen sát phải */
+.stats__table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats__col-side {
+  width: 31%;
+}
+
+.stats__table th,
+.stats__table td {
+  padding: 7px 0;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line);
+}
+
+.stats__table tbody tr:last-child th,
+.stats__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.stats__player {
+  padding-bottom: 8px;
+  font-weight: 800;
+}
+
+/* Tên dài quá thì cắt bớt bằng dấu "…"; chấm màu quân luôn ở phía ngoài bảng */
+.stats__who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.stats__player--b .stats__who {
+  flex-direction: row-reverse;
+}
+
+.stats__who .player__dot {
+  width: 10px;
+  height: 10px;
+}
+
+.stats__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats__label {
+  padding-inline: 6px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.stats__value {
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.stats__value--b {
+  text-align: right;
+}
+
+.stats__main,
+.stats__sub {
+  display: block;
+}
+
+.stats__sub {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.stats__move {
+  padding: 0;
+  font-size: inherit;
   font-weight: 700;
   color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.stats__move:hover {
+  text-decoration: underline;
+}
+
+/* Quân đã ăn vẽ bằng hình quân (nhỏ hơn ở thanh người chơi), dài quá thì xuống dòng */
+.cg-wrap.stats__pieces {
+  position: static;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+  min-width: 0;
+}
+
+.stats__value--b .cg-wrap.stats__pieces {
+  justify-content: flex-end;
+}
+
+.cg-wrap.stats__pieces piece {
+  position: static;
+  display: inline-block;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  will-change: auto;
+}
+
+.cg-wrap.stats__pieces piece + piece {
+  margin-left: -11px;
+}
+
+/* Biểu đồ thời gian nghĩ: cột Trắng mọc lên, cột Đen mọc xuống từ đường giữa. Mỗi nước là một ô bấm cao bằng nửa biểu đồ,
+   cột thật vẽ bên trong (cao theo --h), đầu cột bo 4px, chân cột vuông trên đường giữa. */
+.think {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.think__title {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.think__plot {
+  display: flex;
+  gap: 8px;
+}
+
+.think__legend {
+  flex: none;
+  max-width: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.think__key {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.think__bars {
+  --half: 44px;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  background: linear-gradient(var(--line), var(--line)) 0 50% / 100% 1px no-repeat;
+}
+
+.think__col {
+  flex: 1 0 4px;
+  max-width: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.think__slot {
+  position: relative;
+  display: block;
+  height: var(--half);
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+span.think__slot {
+  cursor: default;
+}
+
+.think__slot::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  height: var(--h, 0%);
+  box-sizing: border-box;
+}
+
+.think__slot--w::before {
+  bottom: 0;
+  border-radius: 4px 4px 0 0;
+  background: #f1ede4;
+  border: 1px solid #56675f;
+  border-bottom: none;
+}
+
+.think__slot--b::before {
+  top: 0;
+  border-radius: 0 0 4px 4px;
+  background: #2c2f2d;
+}
+
+:root[data-theme='dark'] .think__slot--w::before {
+  border-color: transparent;
+}
+
+:root[data-theme='dark'] .think__slot--b::before {
+  background: #3d4642;
+  border: 1px solid #93a49c;
+  border-top: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .think__slot--w::before {
+    border-color: transparent;
+  }
+
+  :root:not([data-theme='light']) .think__slot--b::before {
+    background: #3d4642;
+    border: 1px solid #93a49c;
+    border-top: none;
+  }
+}
+
+.think__slot:hover::before,
+.think__slot:focus-visible::before,
+.think__slot--on::before {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.think__slot:focus-visible {
+  outline: none;
+}
+
+.think__readout {
+  margin: 0;
+  min-height: 1.4em;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* ---------- Tên người chơi (chơi một máy) ---------- */
+.names__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.names__field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.names__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.names__label .player__dot {
+  width: 12px;
+  height: 12px;
+}
+
+.names__swap {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 42px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.names__swap svg {
+  width: 18px;
+  height: 18px;
+}
+
+.names__swap:hover {
+  border-color: var(--accent);
+}
+
+.names__swap:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .credits {

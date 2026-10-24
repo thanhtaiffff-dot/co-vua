@@ -103,6 +103,55 @@ const second = await host.until((m) => m.room?.game?.number === 2, 'tái đấu'
 if (second.room.game.you === hostColor) fail('tái đấu mà không đổi màu')
 console.log('Tái đấu: chủ phòng đổi sang cầm', second.room.game.you === 'w' ? 'Trắng' : 'Đen')
 
+// Thư đầu tiên `p` nhận được (thoả `test`) kể từ lúc đánh dấu `mark` = p.states.length.
+const next = (p, mark, test, label) => p.until((m) => p.states.indexOf(m) >= mark && test(m), label)
+
+// Xin đi lại ở ván 2: bị từ chối thì thôi; lượt sau xin lại, được đồng ý thì ván lùi một nước, thời gian nghĩ cũng lùi theo.
+const white2 = second.room.game.you === 'w' ? host : guest
+const black2 = white2 === host ? guest : host
+let mark = black2.states.length
+await white2.send({ t: 'move', uci: 'e2e4', ply: 0, lag: 0 })
+await next(black2, mark, (m) => m.room?.game?.moves.length === 1, 'ván 2 nước đầu')
+mark = black2.states.length
+await white2.send({ t: 'takeback', yes: true })
+await next(black2, mark, (m) => m.room?.game?.takeback === 'w', 'thấy lời xin đi lại')
+mark = white2.states.length
+await black2.send({ t: 'takeback', yes: false })
+await next(white2, mark, (m) => m.room?.game?.takebackDeclined === 'w', 'bị từ chối cho đi lại')
+mark = white2.states.length
+await black2.send({ t: 'move', uci: 'e7e5', ply: 1, lag: 0 })
+await next(white2, mark, (m) => m.room?.game?.moves.length === 2, 'ván 2 nước thứ hai')
+mark = black2.states.length
+await white2.send({ t: 'move', uci: 'g1f3', ply: 2, lag: 0 })
+await next(black2, mark, (m) => m.room?.game?.moves.length === 3, 'ván 2 nước thứ ba')
+mark = black2.states.length
+await white2.send({ t: 'takeback', yes: true })
+await next(black2, mark, (m) => m.room?.game?.takeback === 'w', 'thấy lời xin đi lại lần hai')
+mark = white2.states.length
+await black2.send({ t: 'takeback', yes: true })
+const undone = await next(white2, mark, (m) => m.room?.game?.moves.length === 2, 'ván lùi lại')
+const { moves: kept, moveTimes } = undone.room.game
+if (kept.join(' ') !== 'e2e4 e7e5' || moveTimes.length !== 2 || moveTimes[0] !== null || typeof moveTimes[1] !== 'number')
+  fail('đi lại sai: ' + JSON.stringify(undone.room.game))
+console.log('Xin đi lại: từ chối được, đồng ý thì ván lùi lại; thời gian nghĩ', JSON.stringify(moveTimes))
+
+// Hết ván 2, chủ phòng mời đấu tiếp, bạn bè từ chối: lời mời mất, chủ phòng không mời lại được nữa.
+mark = host.states.length
+await white2.send({ t: 'resign' })
+await next(host, mark, (m) => m.room?.game?.status.kind === 'resign', 'ván 2 hết')
+const hostColor2 = second.room.game.you
+mark = host.states.length
+const guestMark = guest.states.length
+await host.send({ t: 'rematch', yes: true })
+await next(guest, guestMark, (m) => m.room?.game?.rematch?.[hostColor2] === true, 'bạn bè thấy lời mời đấu tiếp')
+await guest.send({ t: 'rematch', yes: false })
+await next(host, mark, (m) => m.room?.game?.rematchDeclined === hostColor2, 'chủ phòng thấy bị từ chối')
+mark = host.states.length
+await host.send({ t: 'rematch', yes: true })
+const refused = await next(host, mark, (m) => m.t === 'state', 'mời lại sau khi bị từ chối')
+if (refused.room.game.number !== 2 || refused.room.game.rematch[hostColor2]) fail('bị từ chối rồi mà vẫn mời lại được')
+console.log('Từ chối đấu ván nữa: lời mời mất, người mời không mời lại được')
+
 // Ping thì máy chủ tự trả pong.
 const pong = new Promise((resolve) => host.ws.addEventListener('message', (e) => e.data === 'pong' && resolve()))
 await host.send('ping')

@@ -3,9 +3,19 @@
 // Các hàm không tự đọc giờ thật hay bốc thăm, mà nhận `now`, `random` từ ngoài vào, nên test được từng tình huống
 // và dùng lại được cho bản chơi thử chạy ngay trong trình duyệt.
 import type { Color } from 'chess.js'
-import { TIME_CONTROLS, flagTime, lastTimes, newClock, recordMove, sameControl, type ClockState, type TimeControl } from '../game/clock'
+import { TIME_CONTROLS, flagTime, lastTimes, newClock, recordMove, sameControl, undoMove, type ClockState, type TimeControl } from '../game/clock'
 import { gameStatus, replay, timeoutStatus } from '../game/rules'
-import { fromUci, type ClientMessage, type ClockView, type ColorChoice, type CreateRequest, type GameView, type OnlineStatus, type RoomView } from './protocol'
+import {
+  fromUci,
+  takebackPlies,
+  type ClientMessage,
+  type ClockView,
+  type ColorChoice,
+  type CreateRequest,
+  type GameView,
+  type OnlineStatus,
+  type RoomView,
+} from './protocol'
 
 // Ghế 0 là chủ phòng, ghế 1 là bạn bè vào sau.
 export type Seat = 0 | 1
@@ -24,7 +34,11 @@ export type GameData = {
   end: OnlineStatus | null // null: đang chơi
   endedAt: number // lúc hết ván, để đồng hồ dừng đúng chỗ
   drawOffer: Seat | null
+  takeback: Seat | null // ghế đang xin đi lại
+  takebackDeclined: Seat | null // ghế vừa bị từ chối cho đi lại; có nước mới thì xoá
+  takebackAsked: [boolean, boolean] // ghế đã xin đi lại trong lượt này: mỗi lượt xin một lần, khỏi bị xin dồn dập
   rematch: [boolean, boolean]
+  rematchDeclined: Seat | null // ghế vừa bị từ chối đấu ván nữa: không mời lại được, chỉ còn đồng ý nếu bên kia đổi ý mời
   lagQuota: [number, number] // quỹ bù giờ còn lại của từng ghế trong ván này (ms), xem LAG_QUOTA_GAIN
 }
 
@@ -101,6 +115,7 @@ export function parseClientMessage(text: string): ClientMessage | null {
     case 'resign':
       return { t: 'resign' }
     case 'draw':
+    case 'takeback':
     case 'rematch':
       return typeof message.yes === 'boolean' ? { t: message.t, yes: message.yes } : null
     default:
@@ -134,13 +149,37 @@ function seatWith(game: GameData, color: Color): Seat {
 }
 
 function newGame(number: number, white: Seat, control: TimeControl | null): GameData {
-  const lagQuota: [number, number] = [LAG_QUOTA_START, LAG_QUOTA_START]
-  return { number, white, moves: [], clock: newClock(control), end: null, endedAt: 0, drawOffer: null, rematch: [false, false], lagQuota }
+  return {
+    number,
+    white,
+    moves: [],
+    clock: newClock(control),
+    end: null,
+    endedAt: 0,
+    drawOffer: null,
+    takeback: null,
+    takebackDeclined: null,
+    takebackAsked: [false, false],
+    rematch: [false, false],
+    rematchDeclined: null,
+    lagQuota: [LAG_QUOTA_START, LAG_QUOTA_START],
+  }
 }
 
 // Phòng lưu từ bản trước (ván đang chơi dở lúc web lên bản mới) thiếu vài ô mới: điền giá trị đầu.
 export function upgradeRoom(room: RoomData): RoomData {
-  if (room.game && !Array.isArray(room.game.lagQuota)) room.game.lagQuota = [LAG_QUOTA_START, LAG_QUOTA_START]
+  const game = room.game as (Partial<GameData> & GameData) | null
+  if (!game) return room
+  if (!Array.isArray(game.lagQuota)) game.lagQuota = [LAG_QUOTA_START, LAG_QUOTA_START]
+  game.takeback ??= null
+  game.takebackDeclined ??= null
+  if (!Array.isArray(game.takebackAsked)) game.takebackAsked = [false, false]
+  game.rematchDeclined ??= null
+  if (!Array.isArray(game.clock.spent)) {
+    // Bản trước chưa ghi thời gian nghĩ. Khi không tính giờ thì cũng chưa ghi lúc bắt đầu lượt: lấy lúc phòng đổi gần nhất.
+    game.clock.spent = game.moves.map(() => null)
+    if (!game.clock.control) game.clock.turnStart = room.updated
+  }
   return room
 }
 
@@ -223,6 +262,8 @@ function move(room: RoomData, seat: Seat, uci: string, ply: number, lag: number,
   if (flag !== null) game.lagQuota[seat] = Math.min(LAG_QUOTA_MAX, game.lagQuota[seat] - credit + LAG_QUOTA_GAIN)
   // Đối thủ đang xin hòa mà mình đi tiếp thay vì đồng ý, coi như từ chối.
   if (game.drawOffer !== null && game.drawOffer !== seat) game.drawOffer = null
+  // Có nước mới thì lời xin đi lại (nếu có) cũng thôi, và mỗi bên lại được xin một lần.
+  clearTakeback(game)
   const status = gameStatus(chess)
   if (status.kind !== 'playing') finish(room, game, status, now)
   return true
@@ -251,11 +292,62 @@ function draw(room: RoomData, seat: Seat, yes: boolean, now: number): boolean {
   return true
 }
 
+function clearTakeback(game: GameData): void {
+  game.takeback = null
+  game.takebackDeclined = null
+  game.takebackAsked = [false, false]
+}
+
+// Xin đi lại (như chess.com, lichess): đối thủ đồng ý thì ván lùi lại, tới lượt người xin đi lại nước đó; đồng hồ quay về
+// như trước các nước bị lùi. Đối thủ từ chối, hay có ai đi tiếp, thì thôi. Mỗi bên mỗi lượt chỉ xin được một lần.
+function takeback(room: RoomData, seat: Seat, yes: boolean, now: number): boolean {
+  const game = room.game
+  if (!game || game.end) return false
+  const other: Seat = seat === 0 ? 1 : 0
+  if (!yes) {
+    if (game.takeback === seat) game.takeback = null // rút lời xin
+    else if (game.takeback === other) {
+      game.takeback = null // từ chối lời xin của đối thủ
+      game.takebackDeclined = other
+    } else return false
+    return true
+  }
+  if (game.takeback === other) {
+    // Đồng ý cho đối thủ đi lại.
+    const plies = takebackPlies(game.moves.length, colorOf(game, other))
+    game.moves = game.moves.slice(0, -plies)
+    for (let i = 0; i < plies; i++) game.clock = undoMove(game.clock, now)
+    game.drawOffer = null
+    clearTakeback(game)
+    return true
+  }
+  if (game.takeback === seat || game.takebackAsked[seat]) return false
+  // Phải còn nước của mình để lùi (Đen chưa đi nước nào thì chưa xin được).
+  if (game.moves.length < takebackPlies(game.moves.length, colorOf(game, seat))) return false
+  game.takeback = seat
+  game.takebackAsked[seat] = true
+  game.takebackDeclined = null
+  return true
+}
+
 // Hết ván, hai bên cùng bấm tái đấu thì chơi ván mới cùng mức giờ, đổi màu cho nhau (như chess.com).
+// Bên kia mời mà mình không muốn thì từ chối; bị từ chối rồi thì không mời lại được (khỏi làm phiền), trừ khi bên kia
+// đổi ý mời lại mình.
 function rematch(room: RoomData, seat: Seat, yes: boolean): boolean {
   const game = room.game
-  if (!game || !game.end || game.rematch[seat] === yes) return false
-  game.rematch[seat] = yes
+  if (!game || !game.end) return false
+  const other: Seat = seat === 0 ? 1 : 0
+  if (!yes) {
+    if (game.rematch[seat]) game.rematch[seat] = false // rút lời mời
+    else if (game.rematch[other]) {
+      game.rematch[other] = false // từ chối lời mời của bên kia
+      game.rematchDeclined = other
+    } else return false
+    return true
+  }
+  if (game.rematch[seat] || (game.rematchDeclined === seat && !game.rematch[other])) return false
+  game.rematch[seat] = true
+  if (game.rematchDeclined === other) game.rematchDeclined = null
   if (game.rematch[0] && game.rematch[1]) room.game = newGame(game.number + 1, game.white === 0 ? 1 : 0, room.control)
   return true
 }
@@ -278,6 +370,9 @@ export function handle(room: RoomData, token: string | null, message: ClientMess
       break
     case 'draw':
       changed = draw(room, seat, message.yes === true, now)
+      break
+    case 'takeback':
+      changed = takeback(room, seat, message.yes === true, now)
       break
     case 'rematch':
       changed = rematch(room, seat, message.yes === true)
@@ -308,15 +403,21 @@ export function viewsOf(room: RoomData, now: number, online: [boolean, boolean])
   if (game) {
     const byColor = <T,>(pick: (s: Seat) => T): Record<Color, T> =>
       game.white === 0 ? { w: pick(0), b: pick(1) } : { w: pick(1), b: pick(0) }
+    const color = (seat: Seat | null) => (seat === null ? null : colorOf(game, seat))
     shared = {
       number: game.number,
       players: byColor((s) => ({ name: name(s), online: online[s] })),
       score: byColor((s) => room.score[s]),
       moves: [...game.moves],
+      moveTimes: [...game.clock.spent],
       clock: clockView(game, now),
       status: game.end ?? gameStatus(board(game)),
-      drawOffer: game.drawOffer === null ? null : colorOf(game, game.drawOffer),
+      drawOffer: color(game.drawOffer),
+      takeback: color(game.takeback),
+      takebackDeclined: color(game.takebackDeclined),
+      takebackAsked: byColor((s) => game.takebackAsked[s]),
       rematch: byColor((s) => game.rematch[s]),
+      rematchDeclined: color(game.rematchDeclined),
     }
   }
   return (seat) => ({

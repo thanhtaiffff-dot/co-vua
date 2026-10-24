@@ -10,8 +10,11 @@ export type Times = Record<Color, number>
 
 export type ClockState = {
   control: TimeControl | null // null: không tính giờ
-  times: Times[] // times[i]: thời gian còn lại của hai bên ngay sau nước thứ i + 1
-  turnStart: number // lúc lượt hiện tại bắt đầu (lúc nước gần nhất được đi)
+  times: Times[] // times[i]: thời gian còn lại của hai bên ngay sau nước thứ i + 1 (chỉ có khi tính giờ)
+  turnStart: number // lúc lượt hiện tại bắt đầu (lúc nước gần nhất được đi, hay lúc vừa đi lại)
+  // spent[i]: thời gian bên đi nước thứ i + 1 đã nghĩ (ms), ghi cả khi không tính giờ. null là không biết:
+  // nước đầu của Trắng (đồng hồ chưa chạy), hay ván lưu từ bản cũ chưa ghi thời gian nghĩ.
+  spent: (number | null)[]
 }
 
 // Các mức giờ quen thuộc, xếp như bảng chọn của chess.com.
@@ -58,7 +61,7 @@ export function describeControl(control: TimeControl): string {
 }
 
 export function newClock(control: TimeControl | null): ClockState {
-  return { control, times: [], turnStart: 0 }
+  return { control, times: [], turnStart: 0, spent: [] }
 }
 
 // Thời gian còn lại sau nước gần nhất (chưa trừ phần đang chạy của lượt hiện tại).
@@ -74,26 +77,44 @@ export function flagTime(clock: ClockState, turn: Color): number | null {
   return clock.control && last ? clock.turnStart + last[turn] : null
 }
 
-// Ghi lại giờ sau khi bên `mover` đi một nước lúc `now`.
+// Ghi lại thời gian nghĩ và giờ còn lại sau khi bên `mover` đi một nước lúc `now`.
 // Nước đầu của Trắng không bị tính giờ: đồng hồ bắt đầu chạy từ lúc đó (giờ của Đen chạy trước).
 // Chơi online thì `credit` là phần thời gian nước đi nằm trên đường truyền, được trả lại cho người đi.
 export function recordMove(clock: ClockState, mover: Color, now: number, credit = 0): ClockState {
-  const last = lastTimes(clock)
-  if (!clock.control || !last) return clock
-  const started = clock.times.length > 0
+  const first = clock.spent.length === 0
   const spent = Math.max(0, now - clock.turnStart - credit)
-  const next = started ? { ...last, [mover]: last[mover] - spent + clock.control.increment * 1000 } : last
-  return { ...clock, times: [...clock.times, next], turnStart: now }
+  const recorded = { ...clock, spent: [...clock.spent, first ? null : spent], turnStart: now }
+  const last = lastTimes(clock)
+  if (!clock.control || !last) return recorded
+  const next = first ? last : { ...last, [mover]: last[mover] - spent + clock.control.increment * 1000 }
+  return { ...recorded, times: [...clock.times, next] }
 }
 
 // Đi lại thì đồng hồ cũng quay về như lúc trước nước đó, rồi chạy tiếp từ bây giờ.
 export function undoMove(clock: ClockState, now: number): ClockState {
-  return { ...clock, times: clock.times.slice(0, -1), turnStart: now }
+  return { ...clock, times: clock.times.slice(0, -1), spent: clock.spent.slice(0, -1), turnStart: now }
 }
 
 // Dưới mức này đồng hồ chuyển màu đỏ: 1/8 thời gian ban đầu, trong khoảng 10 giây tới 1 phút (giống lichess).
 export function lowTime(control: TimeControl): number {
   return Math.min(60_000, Math.max(10_000, control.minutes * 60_000 * 0.125))
+}
+
+// Thời gian nghĩ một nước, viết gọn cho cột nước đi: 0,4s · 12s · 1:05 · 1:02:05.
+export function formatThink(ms: number): string {
+  const time = Math.max(0, ms)
+  if (time < 10_000) return `${Math.floor(time / 1000)},${Math.floor((time % 1000) / 100)}s`
+  if (time < 60_000) return `${Math.floor(time / 1000)}s`
+  return formatClock(time)
+}
+
+// Thời gian dài viết bằng chữ, cho dòng tóm tắt ván: 45 giây · 12 phút · 1 giờ 5 phút.
+export function formatSpan(ms: number): string {
+  const seconds = Math.round(Math.max(0, ms) / 1000)
+  if (seconds < 60) return `${seconds} giây`
+  const minutes = Math.round(seconds / 60)
+  if (minutes < 60) return `${minutes} phút`
+  return `${Math.floor(minutes / 60)} giờ${minutes % 60 ? ` ${minutes % 60} phút` : ''}`
 }
 
 // 10:00, 0:42; dưới 10 giây hiện cả phần mười giây (0:09.4) như lichess.
@@ -109,15 +130,25 @@ export function formatClock(ms: number): string {
 
 // Đọc lại đồng hồ đã lưu trên máy. Dữ liệu hỏng hoặc không khớp với ván (ví dụ ván lưu từ bản cũ
 // chưa có đồng hồ) thì ván đó chơi tiếp không tính giờ; ván chưa đi nước nào thì dùng mức mặc định.
-export function restoreClock(saved: unknown, moveCount: number): ClockState {
-  const { control, times, turnStart } = (typeof saved === 'object' && saved !== null ? saved : {}) as Partial<ClockState>
-  if (control === null) return newClock(null)
+// Ván lưu từ bản cũ chưa ghi thời gian nghĩ thì các nước đã đi coi như không biết.
+export function restoreClock(saved: unknown, moveCount: number, now: number): ClockState {
+  const { control, times, turnStart, spent } = (typeof saved === 'object' && saved !== null ? saved : {}) as Partial<ClockState>
+  const validSpent = Array.isArray(spent) && spent.length === moveCount && spent.every((s) => s === null || typeof s === 'number')
+  const thinking = validSpent ? spent : Array<null>(moveCount).fill(null)
+  // Không tính giờ: chỉ giữ thời gian nghĩ. Bản cũ không ghi lúc bắt đầu lượt khi không tính giờ,
+  // nên với ván lưu từ bản cũ, nước tới tính thời gian nghĩ từ `now`.
+  const untimed = (): ClockState => ({
+    ...newClock(null),
+    spent: thinking,
+    turnStart: validSpent && typeof turnStart === 'number' ? turnStart : now,
+  })
+  if (control === null) return untimed()
   const validControl = typeof control?.minutes === 'number' && control.minutes > 0 && typeof control.increment === 'number'
-  if (!control || !validControl) return newClock(moveCount > 0 ? null : DEFAULT_CONTROL)
+  if (!control || !validControl) return moveCount > 0 ? untimed() : newClock(DEFAULT_CONTROL)
   if (moveCount === 0) return newClock(control)
   const validTimes =
     Array.isArray(times) &&
     times.length === moveCount &&
     times.every((t) => typeof t?.w === 'number' && typeof t?.b === 'number')
-  return validTimes && typeof turnStart === 'number' ? { control, times, turnStart } : newClock(null)
+  return validTimes && typeof turnStart === 'number' ? { control, times, turnStart, spent: thinking } : untimed()
 }

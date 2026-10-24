@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Color } from 'chess.js'
 import type { Config } from '@lichess-org/chessground/config'
 import { Board } from '../components/Board'
+import { BoardTools } from '../components/BoardTools'
 import { Piece } from '../components/Piece'
 import { TimeControlPicker } from '../components/TimeControlPicker'
 import { TopBar } from '../components/TopBar'
@@ -225,7 +226,10 @@ function Waiting({ room, backend }: { room: RoomView; backend: Backend }) {
         <div className="board-frame">
           <Board config={config} onMove={() => {}} />
         </div>
-        <SeatBar color={room.hostColor} name="Bạn" control={room.control} />
+        <SeatBar color={room.hostColor} name={room.host.name || 'Bạn'} control={room.control} />
+        <div className="board-under">
+          <BoardTools />
+        </div>
       </section>
 
       <aside className="side">

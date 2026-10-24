@@ -9,13 +9,25 @@ export type GameStatus =
   | { kind: 'timeoutDraw'; flagged: Color }
   | { kind: 'stalemate' | 'insufficient' | 'threefold' | 'fifty' }
 
+// Kết quả một ván: ngoài các kiểu tự xử trên bàn cờ, chơi online còn có đầu hàng, hai bên đồng ý hòa,
+// và huỷ ván (một bên thôi khi chưa ai đi quá một nước, không tính thắng thua).
+export type GameResult = GameStatus | { kind: 'resign'; winner: Color } | { kind: 'agreed' } | { kind: 'aborted' }
+
 export type MaterialSide = { pieces: PieceSymbol[]; score: number }
 
 // Những gì một nước đi gây ra, để chọn tiếng cho đúng.
 export type MoveFacts = { capture: boolean; castle: boolean; promotion: boolean; check: boolean; mate: boolean }
 
 const VALUES: Record<PieceSymbol, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 }
+
+// Điểm của một quân, để so ai hơn quân: Tốt 1, Mã 3, Tượng 3, Xe 5, Hậu 9.
+export function pieceValue(type: PieceSymbol): number {
+  return VALUES[type]
+}
+
 const MATERIAL_ORDER: PieceSymbol[] = ['q', 'r', 'b', 'n', 'p']
+// Quân đã ăn xếp từ nhẹ tới nặng, như chess.com.
+const CAPTURE_ORDER: PieceSymbol[] = ['p', 'n', 'b', 'r', 'q']
 
 // Dựng lại ván từ danh sách nước đi, để "đi lại" chỉ là bỏ nước cuối.
 // Dựng lại từ đầu cũng giữ đúng lịch sử cho luật lặp lại 3 lần.
@@ -117,8 +129,43 @@ export function materialDiff(chess: Chess): Record<Color, MaterialSide> {
   return result
 }
 
-export function resultScore(status: GameStatus): string | null {
-  if (status.kind === 'playing') return null
-  if (status.kind === 'checkmate' || status.kind === 'timeout') return status.winner === 'w' ? '1–0' : '0–1'
-  return '½–½'
+// Những quân mỗi bên đã ăn được của đối thủ, theo các nước đã đi (quân phong cấp bị ăn thì tính đúng quân đó).
+export function capturedPieces(chess: Chess): Record<Color, PieceSymbol[]> {
+  const captured: Record<Color, PieceSymbol[]> = { w: [], b: [] }
+  for (const move of chess.history({ verbose: true })) if (move.captured) captured[move.color].push(move.captured)
+  for (const list of Object.values(captured)) list.sort((a, b) => CAPTURE_ORDER.indexOf(a) - CAPTURE_ORDER.indexOf(b))
+  return captured
+}
+
+// Gom các quân cùng loại đứng liền nhau (quân đã xếp từ nhẹ tới nặng): [p, p, n] thành [[p, p], [n]].
+export function groupPieces(pieces: PieceSymbol[]): PieceSymbol[][] {
+  const groups: PieceSymbol[][] = []
+  for (const type of pieces) {
+    const last = groups.at(-1)
+    if (last && last[0] === type) last.push(type)
+    else groups.push([type])
+  }
+  return groups
+}
+
+const PIECE_NAME: Record<PieceSymbol, string> = { p: 'tốt', n: 'mã', b: 'tượng', r: 'xe', q: 'hậu', k: 'vua' }
+
+// Các quân viết thành lời, vd "2 tốt, 1 mã" (cho trình đọc màn hình).
+export function piecesText(pieces: PieceSymbol[]): string {
+  return groupPieces(pieces)
+    .map((group) => `${group.length} ${PIECE_NAME[group[0]]}`)
+    .join(', ')
+}
+
+// Bên thắng của một ván đã xong; null là hòa hoặc huỷ.
+export function winnerOf(result: GameResult): Color | null {
+  return 'winner' in result ? result.winner : null
+}
+
+// Mở ván trên bàn phân tích của lichess (web cờ miễn phí, có máy chấm từng nước). Lichess đọc các nước ngay trên
+// địa chỉ: dấu cách viết thành "_", dấu chiếu "+", "#" bỏ đi (lichess tự biết), tối đa 5000 ký tự.
+export function analysisUrl(sans: string[], orientation: 'white' | 'black'): string {
+  const moves = sans.map((san, i) => (i % 2 === 0 ? `${i / 2 + 1}.${san}` : san).replace(/[+#]/g, ''))
+  const path = encodeURIComponent(moves.join('_').slice(0, 4900))
+  return `https://lichess.org/analysis/pgn/${path}${orientation === 'black' ? '?color=black' : ''}`
 }

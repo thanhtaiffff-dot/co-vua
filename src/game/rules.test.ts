@@ -1,6 +1,20 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import { canCheckmate, describeMove, gameStatus, isPromotion, legalDests, materialDiff, replay, resultScore, timeoutStatus } from './rules'
+import {
+  analysisUrl,
+  canCheckmate,
+  capturedPieces,
+  describeMove,
+  gameStatus,
+  groupPieces,
+  isPromotion,
+  legalDests,
+  materialDiff,
+  piecesText,
+  replay,
+  timeoutStatus,
+  winnerOf,
+} from './rules'
 
 describe('nước đi hợp lệ', () => {
   it('thế cờ ban đầu có 20 nước, từ 10 quân', () => {
@@ -27,7 +41,7 @@ describe('kết thúc ván', () => {
     ])
     const status = gameStatus(chess)
     expect(status).toEqual({ kind: 'checkmate', winner: 'b' })
-    expect(resultScore(status)).toBe('0–1')
+    expect(winnerOf(status)).toBe('b')
   })
 
   it('hết nước đi mà không bị chiếu là hòa pat', () => {
@@ -47,7 +61,7 @@ describe('kết thúc ván', () => {
     ] as const
     const status = gameStatus(replay([...shuffle, ...shuffle]))
     expect(status).toEqual({ kind: 'threefold' })
-    expect(resultScore(status)).toBe('½–½')
+    expect(winnerOf(status)).toBeNull()
   })
 
   it('50 nước không ăn quân, không đi tốt là hòa', () => {
@@ -61,7 +75,6 @@ describe('kết thúc ván', () => {
       { from: 'd1', to: 'h5' },
     ])
     expect(gameStatus(chess)).toEqual({ kind: 'playing', turn: 'b', check: true })
-    expect(resultScore(gameStatus(chess))).toBeNull()
   })
 })
 
@@ -90,17 +103,58 @@ describe('chênh lệch quân', () => {
   })
 })
 
+describe('quân đã bị ăn', () => {
+  it('ghi đủ quân mỗi bên ăn được, xếp từ nhẹ tới nặng', () => {
+    // 1. e4 d5 2. exd5 Qxd5 3. Nc3 Qxa2 4. Rxa2
+    const chess = replay([
+      { from: 'e2', to: 'e4' },
+      { from: 'd7', to: 'd5' },
+      { from: 'e4', to: 'd5' },
+      { from: 'd8', to: 'd5' },
+      { from: 'b1', to: 'c3' },
+      { from: 'd5', to: 'a2' },
+      { from: 'a1', to: 'a2' },
+    ])
+    expect(capturedPieces(chess)).toEqual({ w: ['p', 'q'], b: ['p', 'p'] })
+  })
+
+  it('bắt tốt qua đường và ăn quân phong cấp cũng tính', () => {
+    const enPassant = new Chess('4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2')
+    enPassant.move('exd6')
+    expect(capturedPieces(enPassant)).toEqual({ w: ['p'], b: [] })
+    const promoted = new Chess('1r2k3/P7/8/8/8/8/8/4K3 w - - 0 1')
+    promoted.move('a8=Q')
+    promoted.move('Rxa8')
+    expect(capturedPieces(promoted)).toEqual({ w: [], b: ['q'] })
+  })
+
+  it('gom quân cùng loại để xếp chồng, đọc thành lời', () => {
+    expect(groupPieces(['p', 'p', 'n', 'r', 'r'])).toEqual([['p', 'p'], ['n'], ['r', 'r']])
+    expect(piecesText(['p', 'p', 'n', 'q'])).toBe('2 tốt, 1 mã, 1 hậu')
+    expect(piecesText([])).toBe('')
+  })
+})
+
+describe('mở ván trên lichess để phân tích', () => {
+  it('ghi các nước lên địa chỉ, bỏ dấu chiếu, quay bàn theo phía người xem', () => {
+    expect(analysisUrl(['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'Nf6', 'Qxf7#'], 'white')).toBe(
+      'https://lichess.org/analysis/pgn/1.e4_e5_2.Qh5_Nc6_3.Bc4_Nf6_4.Qxf7',
+    )
+    expect(analysisUrl(['e4', 'e5', 'exd8=Q+'], 'black')).toBe('https://lichess.org/analysis/pgn/1.e4_e5_2.exd8%3DQ?color=black')
+  })
+})
+
 describe('hết giờ', () => {
   it('hết giờ là thua', () => {
     const status = timeoutStatus(new Chess(), 'w')
     expect(status).toEqual({ kind: 'timeout', winner: 'b' })
-    expect(resultScore(status)).toBe('0–1')
+    expect(winnerOf(status)).toBe('b')
   })
 
   it('đối thủ chỉ còn vua thì hết giờ vẫn hòa', () => {
     const status = timeoutStatus(new Chess('8/8/8/4k3/8/8/3PPP2/4K3 b - - 0 1'), 'w')
     expect(status).toEqual({ kind: 'timeoutDraw', flagged: 'w' })
-    expect(resultScore(status)).toBe('½–½')
+    expect(winnerOf(status)).toBeNull()
   })
 
   it('còn chiếu bí được hay không, xét theo quân còn lại của hai bên', () => {
