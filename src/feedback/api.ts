@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react'
 import { loadSaved, save } from '../storage'
 import { demoFeedback } from './demo'
 import type { FeedbackInput, FeedbackPage, FeedbackQuery, SubmitResult } from './feedback'
+import type { MailProblem, MailSave, MailSettings } from './mail'
 
 // Vì sao không gửi hay không đọc được: máy chủ từ chối (slow, busy, full), chìa khoá sai (key), mất mạng (network),
 // hay lỗi khác (bad).
@@ -20,6 +21,9 @@ export class FeedbackError extends Error {
 // `website`: ô bẫy máy dò tự động (người thật để trống).
 export type FeedbackSend = FeedbackInput & { website: string }
 
+// Kết quả gửi thư thử: null là đã gửi; 'demo' là bản chơi thử (không gửi thư thật).
+export type MailTest = { problem: MailProblem | 'demo' | null; settings: MailSettings }
+
 export type FeedbackBackend = {
   send: (feedback: FeedbackSend) => Promise<void>
   list: (key: string, query: FeedbackQuery) => Promise<FeedbackPage>
@@ -27,6 +31,9 @@ export type FeedbackBackend = {
   markSeen: (key: string, ids: number[]) => Promise<void> // chủ web đã thấy các góp ý này
   setDone: (key: string, id: number, done: boolean) => Promise<void>
   remove: (key: string, id: number) => Promise<void>
+  mail: (key: string) => Promise<MailSettings> // cài đặt báo góp ý mới về mail
+  saveMail: (key: string, save: MailSave) => Promise<MailSettings>
+  testMail: (key: string) => Promise<MailTest>
   demo?: true // bản chơi thử: ai cũng xem được hộp thư (toàn góp ý của chính mình và vài góp ý mẫu)
 }
 
@@ -72,6 +79,15 @@ const serverFeedback: FeedbackBackend = {
   },
   async remove(key, id) {
     await call(`/api/feedback/${id}`, { method: 'DELETE' }, key)
+  },
+  mail(key) {
+    return call<MailSettings>('/api/feedback/mail', {}, key)
+  },
+  saveMail(key, save) {
+    return call<MailSettings>('/api/feedback/mail', { method: 'PUT', body: JSON.stringify(save) }, key)
+  },
+  testMail(key) {
+    return call<MailTest>('/api/feedback/mail/test', { method: 'POST' }, key)
   },
 }
 

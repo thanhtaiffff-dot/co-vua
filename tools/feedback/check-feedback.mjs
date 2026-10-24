@@ -1,5 +1,6 @@
 // Kiểm tra phần góp ý trên máy chủ chạy thật: gửi góp ý, các kiểu thư bị từ chối, ô bẫy máy dò tự động, giới hạn gửi
-// dồn, và hộp thư của chủ web (cần chìa khoá: không đúng chìa thì không đọc, không sửa, không xoá được).
+// dồn, hộp thư của chủ web (cần chìa khoá: không đúng chìa thì không đọc, không sửa, không xoá được), và cài đặt báo
+// góp ý mới về mail (dùng chìa Resend giả nên không có thư thật nào được gửi).
 // Cần chạy máy chủ trước: `npm run build && npx wrangler dev`. Mỗi lần chạy lại thì chạy lại cả máy chủ (xoá thư mục
 // .wrangler/state để có hộp thư trống), vì máy chủ nhớ lượt gửi trong một giờ.
 // Cách dùng: OWNER_KEY=<chìa hộp thư> node tools/feedback/check-feedback.mjs [địa chỉ, mặc định http://127.0.0.1:8787]
@@ -59,6 +60,9 @@ for (const [path, init] of [
   ['/1', { method: 'DELETE' }],
   ['/1', { method: 'PATCH', body: JSON.stringify({ status: 'done' }) }],
   ['/seen', { method: 'POST', body: JSON.stringify({ ids: [1] }) }],
+  ['/mail', {}],
+  ['/mail', { method: 'PUT', body: JSON.stringify({ on: false, email: '' }) }],
+  ['/mail/test', { method: 'POST' }],
 ]) {
   const none = await fetch(`${base}/api/feedback${path}`, { method: init.method ?? 'GET', body: init.body })
   if (none.status !== 401) fail(`không có chìa mà ${init.method ?? 'GET'} ${path} được: ${none.status}`)
@@ -99,3 +103,37 @@ if (page.items.some((item) => item.id === target.id)) fail('góp ý đã xoá v�
 response = await owner('/seen', { method: 'POST', body: JSON.stringify({ ids: 'tất cả' }) })
 if (response.status !== 400) fail('danh sách đã thấy sai mà không bị từ chối: ' + response.status)
 console.log(`Hộp thư có chìa: ổn (${page.counts.all} góp ý; đọc, lọc, đánh dấu đã thấy, đã xử lý, xoá)`)
+
+// Báo về mail: mặc định tắt; lưu sai thì bị từ chối; lưu đúng thì chỉ thấy 4 ký tự cuối của chìa Resend.
+let mail = await (await owner('/mail')).json()
+if (mail.on || mail.keyHint) fail('báo mail không tắt sẵn: ' + JSON.stringify(mail))
+for (const [body, why] of [
+  [{ on: true, email: 'chu-web@example.com' }, 'bật mà chưa có chìa'],
+  [{ on: true, email: 'chu-web@example.com', key: 'sk_sai_123456789' }, 'chìa sai dạng'],
+  [{ on: true, email: 'khong-phai-mail', key: 're_thu_1234567890' }, 'mail sai dạng'],
+]) {
+  response = await owner('/mail', { method: 'PUT', body: JSON.stringify(body) })
+  if (response.status !== 400) fail(`lưu báo mail ${why} mà không bị từ chối: ${response.status}`)
+}
+const fakeKey = 're_thu_khong_that_1234'
+response = await owner('/mail', { method: 'PUT', body: JSON.stringify({ on: true, email: 'chu-web@example.com', key: fakeKey }) })
+const saved = await response.text()
+if (!response.ok || saved.includes(fakeKey)) fail('lưu báo mail không được, hay máy chủ trả lại cả chìa Resend: ' + saved)
+mail = JSON.parse(saved)
+if (!mail.on || mail.keyHint !== '1234' || mail.email !== 'chu-web@example.com') fail('cài đặt báo mail không đúng: ' + saved)
+if ((await (await owner('/mail')).text()).includes(fakeKey)) fail('đọc cài đặt báo mail mà lộ cả chìa Resend')
+// Thư thử với chìa giả: Resend từ chối (hay máy chủ không gọi được Resend), hộp thư phải báo lỗi rõ ràng.
+const tried = await (await owner('/mail/test', { method: 'POST' })).json()
+if (!['key', 'network'].includes(tried.problem)) fail('thư thử với chìa giả mà không báo lỗi: ' + JSON.stringify(tried))
+// Có góp ý mới (từ một máy khác, vì máy này đã hết lượt) thì máy chủ dùng một lượt gửi mail.
+response = await send(good('góp ý để thử báo mail'), { 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.9' })
+if (response.status !== 201) fail('không nhận góp ý từ máy khác: ' + response.status)
+for (let i = 0; i < 50 && mail.sentToday < 1; i++) {
+  await new Promise((resolve) => setTimeout(resolve, 100))
+  mail = await (await owner('/mail')).json()
+}
+if (mail.sentToday !== 1) fail('có góp ý mới mà máy chủ không gửi mail: ' + JSON.stringify(mail))
+// Tắt báo mail mà không dán lại chìa: vẫn giữ chìa cũ.
+mail = await (await owner('/mail', { method: 'PUT', body: JSON.stringify({ on: false, email: 'chu-web@example.com' }) })).json()
+if (mail.on || mail.keyHint !== '1234') fail('tắt báo mail mà mất chìa cũ: ' + JSON.stringify(mail))
+console.log(`Báo về mail: ổn (lưu, không lộ chìa, thư thử với chìa giả báo lỗi "${tried.problem}", có góp ý mới thì gửi mail, tắt được)`)

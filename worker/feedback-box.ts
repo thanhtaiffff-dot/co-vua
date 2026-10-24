@@ -4,6 +4,9 @@
 //
 // Không lưu địa chỉ mạng của người gửi: worker chỉ đưa một dãy mã hoá một chiều (`who`) để đếm lượt gửi mỗi giờ,
 // và dấu lượt gửi tự xoá sau một ngày.
+//
+// Hộp thư cũng giữ cài đặt báo góp ý mới về mail (src/feedback/mail.ts): bật hay tắt, mail nhận, chìa Resend, và số
+// thư đã gửi hôm nay. Chìa Resend chỉ đưa cho worker lúc gửi thư, trang Hộp thư chỉ thấy 4 ký tự cuối.
 import { DurableObject } from 'cloudflare:workers'
 import {
   countFeedback,
@@ -20,12 +23,20 @@ import {
   type FeedbackStatus,
   type SubmitResult,
 } from '../src/feedback/feedback'
+import { MAIL_PER_DAY, mailDay, type MailProblem, type MailSave, type MailSettings } from '../src/feedback/mail'
 import type { Env } from './room-server'
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
 
 type Row = { id: number; at: number; kind: string; text: string; contact: string; context: string | null; status: string }
+
+// Cài đặt báo mail lưu trong máy chủ. `day`, `sent`: ngày (giờ Việt Nam) và số thư đã gửi ngày đó.
+type MailState = { on: boolean; email: string; key: string | null; day: string; sent: number; lastSentAt: number | null; problem: MailProblem | null }
+const NO_MAIL: MailState = { on: false, email: '', key: null, day: '', sent: 0, lastSentAt: null, problem: null }
+
+// Chìa và mail để worker gửi một thư. `last`: thư cuối cùng được gửi hôm nay.
+export type MailTicket = { key: string; email: string; last: boolean }
 
 function toItem(row: Row): FeedbackItem {
   let context: FeedbackContext | null = null
@@ -63,6 +74,8 @@ export class FeedbackBox extends DurableObject<Env> {
     )`)
     this.sql.exec('CREATE TABLE IF NOT EXISTS hits (who TEXT NOT NULL, at INTEGER NOT NULL)')
     this.sql.exec('CREATE INDEX IF NOT EXISTS hits_by_who ON hits (who, at)')
+    // Cài đặt của hộp thư (hiện chỉ có báo mail), mỗi dòng một mục dạng JSON.
+    this.sql.exec('CREATE TABLE IF NOT EXISTS settings (name TEXT PRIMARY KEY, value TEXT NOT NULL)')
   }
 
   private count(query: string, ...bindings: (string | number)[]): number {
@@ -122,5 +135,70 @@ export class FeedbackBox extends DurableObject<Env> {
 
   async remove(id: number): Promise<boolean> {
     return this.sql.exec('DELETE FROM feedback WHERE id = ?', id).rowsWritten > 0
+  }
+
+  // ---------- Báo góp ý mới về mail ----------
+  private mail(): MailState {
+    const row = this.sql.exec<{ value: string }>("SELECT value FROM settings WHERE name = 'mail'").toArray()[0]
+    try {
+      return row ? { ...NO_MAIL, ...(JSON.parse(row.value) as Partial<MailState>) } : { ...NO_MAIL }
+    } catch {
+      return { ...NO_MAIL }
+    }
+  }
+
+  private storeMail(state: MailState): void {
+    this.sql.exec("INSERT INTO settings (name, value) VALUES ('mail', ?) ON CONFLICT (name) DO UPDATE SET value = excluded.value", JSON.stringify(state))
+  }
+
+  private mailView(state: MailState, now: number): MailSettings {
+    return {
+      on: state.on,
+      email: state.email,
+      keyHint: state.key ? state.key.slice(-4) : null,
+      sentToday: state.day === mailDay(now) ? state.sent : 0,
+      lastSentAt: state.lastSentAt,
+      problem: state.problem,
+    }
+  }
+
+  async mailSettings(now: number): Promise<MailSettings> {
+    return this.mailView(this.mail(), now)
+  }
+
+  // Lưu cài đặt báo mail. Bật mà chưa có chìa Resend hay chưa có mail nhận thì không lưu.
+  async saveMail(save: MailSave, now: number): Promise<MailSettings | 'nokey' | 'noemail'> {
+    const state = this.mail()
+    const key = save.key ?? state.key
+    if (save.on && !key) return 'nokey'
+    if (save.on && !save.email) return 'noemail'
+    // Đổi chìa hay đổi mail thì lỗi cũ không còn đúng nữa.
+    const problem = key === state.key && save.email === state.email ? state.problem : null
+    const next: MailState = { ...state, on: save.on, email: save.email, key, problem }
+    this.storeMail(next)
+    return this.mailView(next, now)
+  }
+
+  // Lấy lượt gửi một thư báo góp ý mới (tính vào hạn mức mỗi ngày). null: đang tắt, thiếu cài đặt hay hôm nay đã đủ thư.
+  async takeMail(now: number): Promise<MailTicket | null> {
+    const state = this.mail()
+    if (!state.on || !state.key || !state.email) return null
+    const day = mailDay(now)
+    const sent = state.day === day ? state.sent : 0
+    if (sent >= MAIL_PER_DAY) return null
+    this.storeMail({ ...state, day, sent: sent + 1 })
+    return { key: state.key, email: state.email, last: sent + 1 === MAIL_PER_DAY }
+  }
+
+  // Chìa và mail để gửi thư thử: chạy cả khi đang tắt, không tính vào hạn mức mỗi ngày.
+  async mailTarget(): Promise<{ key: string; email: string } | null> {
+    const { key, email } = this.mail()
+    return key && email ? { key, email } : null
+  }
+
+  // Ghi kết quả lần gửi thư gần nhất, để trang Hộp thư báo nếu có lỗi.
+  async mailDone(problem: MailProblem | null, now: number): Promise<void> {
+    const state = this.mail()
+    this.storeMail({ ...state, problem, lastSentAt: problem ? state.lastSentAt : now })
   }
 }
