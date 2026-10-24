@@ -1,12 +1,33 @@
 // Kiểm tra phần góp ý trên máy chủ chạy thật: gửi góp ý, các kiểu thư bị từ chối, ô bẫy máy dò tự động, giới hạn gửi
-// dồn, hộp thư của chủ web (cần chìa khoá: không đúng chìa thì không đọc, không sửa, không xoá được), và cài đặt báo
-// góp ý mới về mail (dùng chìa Resend giả nên không có thư thật nào được gửi).
-// Cần chạy máy chủ trước: `npm run build && npx wrangler dev`. Mỗi lần chạy lại thì chạy lại cả máy chủ (xoá thư mục
-// .wrangler/state để có hộp thư trống), vì máy chủ nhớ lượt gửi trong một giờ.
-// Cách dùng: OWNER_KEY=<chìa hộp thư> node tools/feedback/check-feedback.mjs [địa chỉ, mặc định http://127.0.0.1:8787]
-// Không có OWNER_KEY thì chỉ thử phần gửi góp ý.
+// dồn, và đưa góp ý thành Issue trên GitHub. Không đụng tới GitHub thật: script tự mở một "GitHub giả" ở cổng 8790,
+// ghi lại các Issue máy chủ tạo, và có lúc cố tình trả lỗi để xem góp ý có được giữ lại rồi gửi lại không.
+// Cần chạy máy chủ trước, trỏ vào GitHub giả:
+//   npm run build && npx wrangler dev --var GITHUB_API:http://127.0.0.1:8790 --var GITHUB_TOKEN:token-thu
+// Mỗi lần chạy lại thì chạy lại cả máy chủ (xoá thư mục .wrangler/state), vì máy chủ nhớ lượt gửi trong một giờ.
+// Cách dùng: node tools/feedback/check-feedback.mjs [địa chỉ, mặc định http://127.0.0.1:8787]
+import { createServer } from 'node:http'
+
 const base = process.argv[2] ?? 'http://127.0.0.1:8787'
-const key = process.env.OWNER_KEY
+const REPO = 'thanhtaiffff-dot/co-vua-gop-y'
+
+// GitHub giả: `answer` là mã trả lời cho lần tạo Issue tới (201 là nhận).
+const issues = []
+let answer = 201
+let calls = 0
+const github = createServer((request, response) => {
+  let body = ''
+  request.on('data', (chunk) => (body += chunk))
+  request.on('end', () => {
+    calls++
+    if (request.method !== 'POST' || request.url !== `/repos/${REPO}/issues`) {
+      response.writeHead(404).end('{}')
+      return
+    }
+    if (answer === 201) issues.push({ headers: request.headers, ...JSON.parse(body) })
+    response.writeHead(answer, { 'Content-Type': 'application/json' }).end('{}')
+  })
+})
+await new Promise((resolve) => github.listen(8790, '127.0.0.1', resolve))
 
 function fail(message) {
   console.error('LỖI:', message)
@@ -17,15 +38,15 @@ function send(body, headers = { 'Content-Type': 'application/json' }) {
   return fetch(`${base}/api/feedback`, { method: 'POST', headers, body: typeof body === 'string' ? body : JSON.stringify(body) })
 }
 
-function owner(path = '', init = {}, ownerKey = key) {
-  const headers = { Authorization: `Bearer ${ownerKey}` }
-  if (init.body) headers['Content-Type'] = 'application/json'
-  return fetch(`${base}/api/feedback${path}`, { ...init, headers })
+// Chờ tới khi điều kiện đúng (máy chủ gửi Issue sau khi đã trả lời người gửi), tối đa 5 giây.
+async function until(check) {
+  for (let i = 0; i < 50 && !check(); i++) await new Promise((resolve) => setTimeout(resolve, 100))
+  return check()
 }
 
-const good = (text) => ({ kind: 'bug', text, contact: 'Người thử', context: { page: 'Chơi một máy', device: 'máy thử', settings: '', version: 'thử' }, website: '' })
+const good = (text) => ({ kind: 'bug', text, contact: 'Người thử', context: { page: 'Chơi một máy', game: 'e4 e5 Nf3', device: 'máy thử', settings: '', version: 'thử' }, website: '' })
 
-// Thư sai kiểu, quá dài, thiếu nội dung: bị từ chối trước khi tới hộp thư (không tính lượt).
+// Thư sai kiểu, quá dài, thiếu nội dung: bị từ chối ngay (không tính lượt).
 let response = await send(JSON.stringify(good('chữ thường')), { 'Content-Type': 'text/plain' })
 if (response.status !== 415) fail('gửi không phải JSON mà không bị từ chối: ' + response.status)
 response = await send('x'.repeat(100_000))
@@ -37,103 +58,61 @@ if (response.status !== 400) fail('góp ý quá 1000 ký tự mà không bị t�
 response = await send('{hỏng')
 if (response.status !== 400) fail('gửi JSON hỏng mà không bị từ chối: ' + response.status)
 
-// Ô bẫy có chữ: máy chủ trả lời như đã nhận, nhưng không lưu.
+// Ô bẫy có chữ: máy chủ trả lời như đã nhận, nhưng không tạo Issue.
 response = await send({ ...good('máy dò tự động'), website: 'http://spam.example' })
 if (response.status !== 201) fail('ô bẫy: máy chủ không giả vờ nhận: ' + response.status)
 
-// Góp ý có mã lạ: lưu nguyên dạng chữ (giao diện chỉ hiện chữ, không chạy mã).
-const evil = '<img src=x onerror=alert(1)> <script>alert(2)</script> https://lua-dao.example'
+// Góp ý đầu tiên gặp lúc GitHub trục trặc: người gửi vẫn được báo đã nhận, góp ý nằm chờ.
+answer = 500
+const evil = '<img src=x onerror=alert(1)> @ai-do ![ảnh](https://lua-dao.example/x.png)\n```\n# thoát khối'
+response = await send(good(evil))
+if (response.status !== 201) fail('GitHub trục trặc mà người gửi bị báo lỗi: ' + response.status)
+if (!(await until(() => calls > 0)) || issues.length) fail('máy chủ không thử gửi lên GitHub, hay tạo Issue dù GitHub báo lỗi')
+answer = 201
+
+// GitHub ổn lại: góp ý sau đưa lên, kéo theo cả góp ý đang chờ (cũ trước).
 const sent = [evil, 'góp ý 2', 'góp ý 3', 'góp ý 4', 'góp ý 5']
-for (const text of sent) {
+for (const text of sent.slice(1)) {
   response = await send(good(text))
   if (response.status !== 201) fail(`không nhận góp ý thật "${text}": ${response.status}`)
 }
+if (!(await until(() => issues.length >= sent.length))) fail(`thiếu Issue: có ${issues.length}/${sent.length}`)
+if (issues.length !== sent.length) fail(`thừa Issue (tạo trùng?): ${issues.length}`)
+const order = issues.map((issue) => sent.find((text) => issue.body.includes(text)))
+if (order.join('|') !== sent.join('|')) fail('Issue không theo thứ tự gửi, hay thiếu nội dung: ' + order.join(' | '))
 // Góp ý thứ 6 trong một giờ từ cùng một máy: bị từ chối.
 response = await send(good('góp ý 6'))
 if (response.status !== 429 || (await response.json()).error !== 'slow') fail('gửi dồn quá 5 góp ý một giờ mà không bị chặn: ' + response.status)
-console.log('Gửi góp ý: ổn (thư sai bị từ chối, ô bẫy, chặn gửi dồn sau 5 góp ý)')
+console.log('Gửi góp ý: ổn (thư sai bị từ chối, ô bẫy, chặn gửi dồn sau 5 góp ý, GitHub lỗi thì giữ lại rồi gửi sau)')
 
-// Hộp thư: không có chìa, sai chìa thì không đọc, không sửa, không xoá được.
-for (const [path, init] of [
-  ['', {}],
-  ['/unread', {}],
-  ['/1', { method: 'DELETE' }],
-  ['/1', { method: 'PATCH', body: JSON.stringify({ status: 'done' }) }],
-  ['/seen', { method: 'POST', body: JSON.stringify({ ids: [1] }) }],
-  ['/mail', {}],
-  ['/mail', { method: 'PUT', body: JSON.stringify({ on: false, email: '' }) }],
-  ['/mail/test', { method: 'POST' }],
-]) {
-  const none = await fetch(`${base}/api/feedback${path}`, { method: init.method ?? 'GET', body: init.body })
-  if (none.status !== 401) fail(`không có chìa mà ${init.method ?? 'GET'} ${path} được: ${none.status}`)
-  const wrong = await owner(path, init, 'chia-khoa-sai-0123456789abcdef')
-  if (wrong.status !== 401) fail(`sai chìa mà ${init.method ?? 'GET'} ${path} được: ${wrong.status}`)
-}
-console.log('Hộp thư không có chìa: ổn (bị từ chối hết)')
+// Issue đúng dạng: đúng token, tiêu đề có loại, nhãn theo loại, chữ người chơi nằm trọn trong khối chữ thô.
+const first = issues[0]
+if (first.headers.authorization !== 'Bearer token-thu') fail('gửi Issue không kèm đúng token')
+if (!first.headers['user-agent']) fail('gửi Issue thiếu User-Agent (GitHub bắt buộc)')
+if (!first.title.startsWith('🐞 Báo lỗi: <img')) fail('tiêu đề Issue sai: ' + first.title)
+if (JSON.stringify(first.labels) !== '["Báo lỗi"]') fail('nhãn Issue sai: ' + JSON.stringify(first.labels))
+if (!first.body.includes('````text\n<img')) fail('nội dung không nằm trong khối chữ thô dài hơn dấu ` trong góp ý:\n' + first.body)
+if (!first.body.includes('[Mở ván trên lichess](https://lichess.org/analysis/pgn/1.e4_e5_2.Nf3')) fail('Issue thiếu link mở ván')
+console.log('Issue: ổn (đúng token, tiêu đề, nhãn, chữ người chơi không thành link/ảnh/@tên)')
 
-if (!key) {
-  console.log('Không có OWNER_KEY nên bỏ qua phần đọc hộp thư.')
-  process.exit(0)
-}
-
-let page = await (await owner()).json()
-const mine = page.items.filter((item) => sent.includes(item.text))
-if (mine.length !== sent.length) fail(`hộp thư thiếu góp ý: có ${mine.length}/${sent.length}`)
-if (page.items.some((item) => item.text === 'máy dò tự động')) fail('góp ý của ô bẫy bị lưu')
-if (!page.items.some((item) => item.text === evil)) fail('góp ý có mã lạ không còn nguyên dạng chữ')
-if (page.items[0].id < page.items[page.items.length - 1].id) fail('hộp thư không xếp mới nhất lên trên')
-const newCount = (await (await owner('/unread')).json()).unread
-if (newCount < sent.length) fail('số góp ý mới sai: ' + newCount)
-
-const target = mine[0]
-response = await owner('/seen', { method: 'POST', body: JSON.stringify({ ids: mine.map((item) => item.id) }) })
-if (!response.ok) fail('không đánh dấu đã thấy được: ' + response.status)
-const after = (await (await owner('/unread')).json()).unread
-if (after !== newCount - mine.length) fail(`đánh dấu đã thấy mà số mới không giảm: ${newCount} → ${after}`)
-response = await owner(`/${target.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'done' }) })
-if (!response.ok) fail('không đánh dấu đã xử lý được: ' + response.status)
-page = await (await owner('?open=1')).json()
-if (page.items.some((item) => item.id === target.id)) fail('lọc "chưa xử lý" vẫn hiện góp ý đã xử lý')
-page = await (await owner('?kind=idea')).json()
-if (page.items.length !== 0) fail('lọc theo loại "Ý tưởng" lại hiện góp ý báo lỗi')
-response = await owner(`/${target.id}`, { method: 'DELETE' })
-if (!(await response.json()).ok) fail('không xoá được góp ý')
-page = await (await owner()).json()
-if (page.items.some((item) => item.id === target.id)) fail('góp ý đã xoá vẫn còn')
-response = await owner('/seen', { method: 'POST', body: JSON.stringify({ ids: 'tất cả' }) })
-if (response.status !== 400) fail('danh sách đã thấy sai mà không bị từ chối: ' + response.status)
-console.log(`Hộp thư có chìa: ổn (${page.counts.all} góp ý; đọc, lọc, đánh dấu đã thấy, đã xử lý, xoá)`)
-
-// Báo về mail: mặc định tắt; lưu sai thì bị từ chối; lưu đúng thì chỉ thấy 4 ký tự cuối của chìa Resend.
-let mail = await (await owner('/mail')).json()
-if (mail.on || mail.keyHint) fail('báo mail không tắt sẵn: ' + JSON.stringify(mail))
-for (const [body, why] of [
-  [{ on: true, email: 'chu-web@example.com' }, 'bật mà chưa có chìa'],
-  [{ on: true, email: 'chu-web@example.com', key: 'sk_sai_123456789' }, 'chìa sai dạng'],
-  [{ on: true, email: 'khong-phai-mail', key: 're_thu_1234567890' }, 'mail sai dạng'],
-]) {
-  response = await owner('/mail', { method: 'PUT', body: JSON.stringify(body) })
-  if (response.status !== 400) fail(`lưu báo mail ${why} mà không bị từ chối: ${response.status}`)
-}
-const fakeKey = 're_thu_khong_that_1234'
-response = await owner('/mail', { method: 'PUT', body: JSON.stringify({ on: true, email: 'chu-web@example.com', key: fakeKey }) })
-const saved = await response.text()
-if (!response.ok || saved.includes(fakeKey)) fail('lưu báo mail không được, hay máy chủ trả lại cả chìa Resend: ' + saved)
-mail = JSON.parse(saved)
-if (!mail.on || mail.keyHint !== '1234' || mail.email !== 'chu-web@example.com') fail('cài đặt báo mail không đúng: ' + saved)
-if ((await (await owner('/mail')).text()).includes(fakeKey)) fail('đọc cài đặt báo mail mà lộ cả chìa Resend')
-// Thư thử với chìa giả: Resend từ chối (hay máy chủ không gọi được Resend), hộp thư phải báo lỗi rõ ràng.
-const tried = await (await owner('/mail/test', { method: 'POST' })).json()
-if (!['key', 'network'].includes(tried.problem)) fail('thư thử với chìa giả mà không báo lỗi: ' + JSON.stringify(tried))
-// Có góp ý mới (từ một máy khác, vì máy này đã hết lượt) thì máy chủ dùng một lượt gửi mail.
-response = await send(good('góp ý để thử báo mail'), { 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.9' })
+// Token hỏng (hết hạn, bị xoá): góp ý nằm chờ, dán token mới xong thì được gửi.
+answer = 401
+// Đếm trước khi gửi: máy chủ có thể gọi GitHub trước cả khi người gửi nhận được trả lời.
+const before = calls
+response = await send(good('góp ý lúc token hỏng'), { 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.9' })
+if (response.status !== 201) fail('token hỏng mà người gửi bị báo lỗi: ' + response.status)
+if (!(await until(() => calls > before))) fail('máy chủ không thử gửi góp ý lúc token hỏng')
+answer = 201
+response = await send(good('góp ý sau khi có token mới'), { 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.10' })
 if (response.status !== 201) fail('không nhận góp ý từ máy khác: ' + response.status)
-for (let i = 0; i < 50 && mail.sentToday < 1; i++) {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  mail = await (await owner('/mail')).json()
+if (!(await until(() => issues.length === sent.length + 2))) fail('góp ý lúc token hỏng bị mất: ' + issues.length)
+if (!issues[sent.length].body.includes('góp ý lúc token hỏng')) fail('góp ý chờ không được gửi trước')
+console.log('Token hỏng: ổn (góp ý nằm chờ, có token lại thì gửi đủ)')
+
+// Trang hộp thư cũ không còn: đọc góp ý qua máy chủ là không được.
+for (const path of ['', '/unread', '/mail']) {
+  response = await fetch(`${base}/api/feedback${path}`)
+  if (response.status !== 404) fail(`đường hộp thư cũ GET /api/feedback${path} vẫn còn: ${response.status}`)
 }
-if (mail.sentToday !== 1) fail('có góp ý mới mà máy chủ không gửi mail: ' + JSON.stringify(mail))
-// Tắt báo mail mà không dán lại chìa: vẫn giữ chìa cũ.
-mail = await (await owner('/mail', { method: 'PUT', body: JSON.stringify({ on: false, email: 'chu-web@example.com' }) })).json()
-if (mail.on || mail.keyHint !== '1234') fail('tắt báo mail mà mất chìa cũ: ' + JSON.stringify(mail))
-console.log(`Báo về mail: ổn (lưu, không lộ chìa, thư thử với chìa giả báo lỗi "${tried.problem}", có góp ý mới thì gửi mail, tắt được)`)
+console.log('Hộp thư cũ: ổn (đã bỏ, không đọc được góp ý qua web)')
+github.close()

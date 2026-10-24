@@ -1,11 +1,11 @@
 // Nút Góp ý (hình phong thư, rê chuột vào mới chạy ra chữ "Góp ý" cho đầu trang khỏi rườm rà) và form góp ý mở ra khi
 // bấm: điện thoại thì trượt lên từ cạnh dưới, máy tính thì hiện giữa màn hình, như bảng chọn bộ tiếng.
 // Form gồm loại góp ý, nội dung, tên hay cách liên lạc (không bắt buộc), và thông tin ván, máy gửi kèm (tắt được,
-// xem được trước khi gửi). Máy của chủ web thấy thêm số góp ý mới và lối vào hộp thư.
+// xem được trước khi gửi). Góp ý tới chủ web dưới dạng Issue trên GitHub.
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react'
 import { myName } from '../online/identity'
-import { navigate, usePath } from '../router'
-import { FeedbackError, feedbackBackend, ownerKey, refreshUnread, useUnread, type FeedbackProblem } from './api'
+import { usePath } from '../router'
+import { FeedbackError, sendFeedback, type FeedbackProblem } from './api'
 import { gatherContext } from './context'
 import { CONTACT_MAX, contextLines, FEEDBACK_KINDS, KIND_INFO, OWNER_NAME, TEXT_MAX, type FeedbackContext, type FeedbackKind } from './feedback'
 import { onOpenFeedback, openFeedback } from './sheetState'
@@ -14,9 +14,8 @@ import './feedback.css'
 const PROBLEM_TEXT: Record<FeedbackProblem, string> = {
   slow: 'Bạn vừa gửi nhiều góp ý liền, nghỉ tay một lát rồi gửi tiếp nhé.',
   busy: 'Hôm nay web đã nhận rất nhiều góp ý, mai bạn gửi lại giúp nhé.',
-  full: 'Hộp góp ý đang đầy, vài hôm nữa bạn gửi lại giúp nhé.',
+  full: 'Hộp góp ý đang tạm nghẽn, vài hôm nữa bạn gửi lại giúp nhé.',
   network: 'Chưa gửi được: kiểm tra mạng rồi bấm Gửi lại nhé.',
-  key: 'Chưa gửi được, bạn thử lại nhé.',
   bad: 'Chưa gửi được, bạn thử lại nhé.',
 }
 
@@ -31,24 +30,18 @@ function Envelope() {
 
 // `place`: "top" ở đầu trang (màn hình đủ rộng), "foot" ở cuối trang (điện thoại hẹp, đầu trang hết chỗ).
 export function FeedbackButton({ place }: { place: 'top' | 'foot' }) {
-  const unread = useUnread()
   return (
     <button
       type="button"
       className={`icon-btn fb-btn fb-btn--${place}`}
       onClick={openFeedback}
       aria-haspopup="dialog"
-      aria-label={unread ? `Góp ý. Hộp thư có ${unread} góp ý mới` : 'Góp ý'}
+      aria-label="Góp ý"
     >
       <span className="fb-btn__label" aria-hidden="true">
         Góp ý
       </span>
       <Envelope />
-      {!!unread && (
-        <span className="fb-btn__badge" aria-hidden="true">
-          {unread > 9 ? '9+' : unread}
-        </span>
-      )}
     </button>
   )
 }
@@ -62,7 +55,7 @@ export function PageFoot() {
   )
 }
 
-// Thông tin gửi kèm, hiện cho người gửi xem trước (và cho chủ web đọc trong hộp thư).
+// Thông tin gửi kèm, hiện cho người gửi xem trước.
 export function ContextLines({ context }: { context: FeedbackContext }) {
   return (
     <dl className="fb-context">
@@ -89,8 +82,6 @@ export function FeedbackSheet() {
   const [context, setContext] = useState<FeedbackContext | null>(null)
   const [phase, setPhase] = useState<'edit' | 'sending' | 'sent'>('edit')
   const [problem, setProblem] = useState<FeedbackProblem | null>(null)
-  const unread = useUnread()
-  const owner = ownerKey() !== null
   const ready = text.replace(/\s/g, '').length >= 2 && phase === 'edit'
 
   // Nút nào trên trang bấm Góp ý thì mở form. Thông tin gửi kèm gom lúc mở, đúng như lúc người gửi đang thấy.
@@ -126,20 +117,14 @@ export function FeedbackSheet() {
     setPhase('sending')
     setProblem(null)
     try {
-      await feedbackBackend.send({ kind: kind ?? 'other', text, contact: contact.trim(), context: attach ? context : null, website: trap })
+      await sendFeedback({ kind: kind ?? 'other', text, contact: contact.trim(), context: attach ? context : null, website: trap })
       setPhase('sent')
       setText('')
       setKind(null)
-      if (owner) void refreshUnread()
     } catch (error) {
       setProblem(error instanceof FeedbackError ? error.problem : 'bad')
       setPhase('edit')
     }
-  }
-
-  function openInbox() {
-    close()
-    navigate('/hop-thu')
   }
 
   return (
@@ -176,11 +161,6 @@ export function FeedbackSheet() {
           </span>
           <p className="fb-done__title">Đã gửi, cảm ơn bạn!</p>
           <div className="fb-actions">
-            {owner && (
-              <button type="button" className="btn" onClick={openInbox}>
-                Mở hộp thư
-              </button>
-            )}
             <button type="button" className="btn" onClick={again}>
               Gửi thêm
             </button>
@@ -191,14 +171,6 @@ export function FeedbackSheet() {
         </div>
       ) : (
         <form className="fb-body" onSubmit={send}>
-          {owner && (
-            <button type="button" className="fb-owner" onClick={openInbox}>
-              <span>Hộp thư góp ý</span>
-              {!!unread && <span className="fb-owner__new">{unread} mới</span>}
-              <span aria-hidden="true">›</span>
-            </button>
-          )}
-
           <div className="fb-kinds" role="radiogroup" aria-label="Loại góp ý">
             {FEEDBACK_KINDS.map((id) => (
               <label key={id} className={`fb-kind${kind === id ? ' fb-kind--on' : ''}`}>

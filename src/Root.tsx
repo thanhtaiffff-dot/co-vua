@@ -1,7 +1,5 @@
-// Chọn trang theo địa chỉ: /phong/<mã> là phòng chơi online, /online là trang tạo phòng, /hop-thu là hộp thư góp ý
-// (chỉ chủ web mở được), còn lại là chơi một máy.
+// Chọn trang theo địa chỉ: /phong/<mã> là phòng chơi online, /online là trang tạo phòng, còn lại là chơi một máy.
 import App from './App'
-import { InboxPage } from './feedback/Inbox'
 import { serverBackend } from './online/backend'
 import { demoBackend } from './online/demo'
 import { CreatePage, RoomPage } from './online/OnlinePages'
@@ -16,6 +14,5 @@ export function Root() {
   const room = /^\/phong\/([^/]+)\/?$/.exec(path)
   if (room) return <RoomPage key={room[1]} backend={backend} id={room[1].toLowerCase()} />
   if (/^\/online\/?$/.test(path)) return <CreatePage backend={backend} />
-  if (/^\/hop-thu\/?$/.test(path)) return <InboxPage />
   return <App />
 }

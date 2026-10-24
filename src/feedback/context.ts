@@ -38,7 +38,6 @@ export function pageName(path: string): string {
   const room = /^\/phong\/([^/]+)/.exec(path)
   if (room) return `Phòng online ${room[1].slice(0, 12)}`
   if (/^\/online\/?$/.test(path)) return 'Tạo phòng online'
-  if (/^\/hop-thu\/?$/.test(path)) return 'Hộp thư góp ý'
   return 'Chơi một máy'
 }
 
