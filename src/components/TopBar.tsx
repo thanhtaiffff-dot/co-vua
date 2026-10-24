@@ -1,6 +1,8 @@
-// Đầu trang dùng chung cho mọi trang: tên web, nút chuyển giữa chơi chung một máy và chơi online, nút chọn chủ đề,
-// nút chọn bộ tiếng và nút loa. Lựa chọn chủ đề và âm thanh lưu trong máy, trang nào cũng dùng chung.
+// Đầu trang dùng chung cho mọi trang: tên web, nút chuyển giữa chơi chung một máy và chơi online, nút Góp ý, nút chọn
+// chủ đề, nút chọn bộ tiếng và nút loa. Lựa chọn chủ đề và âm thanh lưu trong máy, trang nào cũng dùng chung.
+// Form góp ý cũng nằm ở đây (một form cho cả trang; nút Góp ý cuối trang trên điện thoại cũng mở form này).
 import { useEffect, useState } from 'react'
+import { FeedbackButton, FeedbackSheet } from '../feedback/FeedbackForm'
 import { navigate } from '../router'
 import { playSample, playSound, selectSoundSet, setSoundEnabled, setupSound, SOUND_SETS, type SoundSet } from '../sound'
 import { loadSaved, save } from '../storage'
@@ -83,6 +85,7 @@ export function TopBar({ switchTo }: Props) {
         {switchTo.label}
       </a>
       <div className="topbar__tools">
+        <FeedbackButton place="top" />
         <ThemePicker onPickPieces={pickPieces} />
         <SoundSetPicker
           value={activeSet}
@@ -95,6 +98,7 @@ export function TopBar({ switchTo }: Props) {
         />
         <SoundToggle on={soundOn} onToggle={toggleSound} />
       </div>
+      <FeedbackSheet />
     </header>
   )
 }

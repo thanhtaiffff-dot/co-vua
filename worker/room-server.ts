@@ -10,8 +10,9 @@
 import { DurableObject } from 'cloudflare:workers'
 import { MAX_VISITORS, type ChatLine, type CreateRequest, type ErrorCode, type ServerMessage } from '../src/online/protocol'
 import { chat, chatOf, checkFlag, createRoom, flagDue, handle, parseClientMessage, seatOf, upgradeRoom, viewsOf, type RoomData, type Seat } from '../src/online/room'
+import type { FeedbackBox } from './feedback-box'
 
-export type Env = { ROOMS: DurableObjectNamespace<ChessRoom> }
+export type Env = { ROOMS: DurableObjectNamespace<ChessRoom>; FEEDBACK: DurableObjectNamespace<FeedbackBox> }
 
 // Phòng không ai đụng tới 30 ngày thì xoá cho gọn.
 const CLEANUP_AFTER = 30 * 24 * 60 * 60 * 1000

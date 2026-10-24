@@ -12,10 +12,18 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
-  // Mỗi phòng chơi online là một Durable Object lớp ChessRoom (xem worker/room-server.ts).
-  // Gói miễn phí của Cloudflare chỉ cho loại lưu bằng SQLite, nên khai báo ở "new_sqlite_classes".
+  // Mỗi phòng chơi online là một Durable Object lớp ChessRoom (xem worker/room-server.ts); hộp thư góp ý là một
+  // Durable Object lớp FeedbackBox duy nhất (worker/feedback-box.ts).
+  // Gói miễn phí của Cloudflare chỉ cho loại lưu bằng SQLite, nên khai báo ở "new_sqlite_classes". Mỗi lần thêm lớp mới
+  // là thêm một dòng "migrations" mới, không sửa dòng cũ.
   "durable_objects": {
-    "bindings": [{ "name": "ROOMS", "class_name": "ChessRoom" }]
+    "bindings": [
+      { "name": "ROOMS", "class_name": "ChessRoom" },
+      { "name": "FEEDBACK", "class_name": "FeedbackBox" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChessRoom"] }]
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["ChessRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["FeedbackBox"] }
+  ]
 }

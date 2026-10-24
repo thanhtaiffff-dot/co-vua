@@ -40,6 +40,15 @@ Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước 
 - Quân đã ăn, bảng chọn quân phong cấp, huy hiệu màu quân ở phòng online luôn dùng hình 2D của bộ đang chọn cho dễ nhìn.
 - Máy chỉ tải ảnh của bộ đang dùng (một tấm ảnh cho cả bộ quân), đổi bộ thì chờ tải xong ảnh mới mới vẽ lại.
 
+### Góp ý cho web
+
+- Nút **Góp ý** chỉ là hình phong thư (cho đầu trang khỏi rườm rà chữ); máy tính rê chuột vào thì chữ "Góp ý" mới chạy ra. Màn hình từ 430px trở lên thì nút nằm ở đầu trang, cạnh nút Chủ đề; điện thoại hẹp hơn thì đầu trang hết chỗ nên nút nằm cuối trang.
+- Form ngắn: chọn loại (**Báo lỗi**, **Ý tưởng**, **Khen**, **Khác**), gõ nội dung (tối đa 1000 ký tự), tên hoặc cách liên lạc (không bắt buộc, điền sẵn tên đã nhập khi chơi online). Lỡ đóng form thì chữ đã gõ vẫn còn.
+- Web tự gửi kèm thông tin để khỏi phải tự kể (bật sẵn, tắt được, bấm **Xem** để thấy hết trước khi gửi): đang ở trang nào, các nước đã đi và tình hình ván, điện thoại hay máy tính, trình duyệt (cả trình duyệt trong app Zalo, Messenger), cỡ màn hình, chủ đề, bộ tiếng, bản web.
+- **Hộp thư góp ý** ở `/hop-thu`, chỉ chủ web mở được, bằng link riêng có chìa khoá (`/hop-thu#khoa=<chìa>`). Mở một lần là máy nhớ chìa; từ đó nút Góp ý trên máy đó có chấm đỏ đếm góp ý mới, và form có lối vào hộp thư. Trong hộp thư: góp ý mới nhất ở trên, lọc theo loại, ẩn góp ý đã xử lý, nút **Đã xử lý**, **Xoá** (bấm hai lần), góp ý có kèm ván thì mở lại ván đó trên lichess. Máy dùng chung thì bấm **Quên chìa khoá trên máy này**.
+- **Chống phá**: mỗi máy (theo địa chỉ mạng) tối đa 5 góp ý mỗi giờ, cả web tối đa 200 góp ý mỗi ngày, hộp giữ tối đa 1000 góp ý (đầy thì chờ chủ web xoá bớt). Ô bẫy ẩn cho máy dò tự động: điền vào thì máy chủ giả vờ nhận rồi bỏ. Chỉ nhận góp ý gửi từ chính web này. Góp ý chỉ hiện dạng chữ: link không bấm được, mã lạ không chạy được.
+- **Riêng tư**: máy chủ không lưu địa chỉ mạng của người gửi, chỉ giữ một dãy mã hoá một chiều để đếm lượt gửi, sau một ngày tự xoá. Code chỉ giữ "dấu vân tay" (SHA-256) của chìa khoá hộp thư, không suy ngược ra chìa được, nên kho code công khai vẫn an toàn. Muốn đổi chìa: tạo chìa mới (24 byte ngẫu nhiên) rồi thay dòng `OWNER_KEY_SHA256` trong `worker/index.ts`.
+
 ### Hai người chơi chung một máy
 
 - Kéo thả hoặc bấm để đi quân, chấm gợi ý các ô đi được.
@@ -73,6 +82,7 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 | `npm run dev:server` | Chạy máy chủ phòng chơi online trên máy (mở thêm một Terminal, để chạy song song với `npm run dev`) |
 | `npm test` | Chạy các bài kiểm tra luật cờ, đồng hồ, âm thanh, chủ đề, phòng chơi online |
 | `npm run test:server` | Kiểm tra máy chủ phòng chạy thật (cần `npm run dev:server` đang chạy) |
+| `npm run test:feedback` | Kiểm tra phần góp ý trên máy chủ chạy thật: gửi, chặn gửi dồn, ô bẫy, hộp thư không có chìa thì không vào được (cần `npm run dev:server` vừa chạy lại với hộp thư trống; đặt `OWNER_KEY=<chìa>` để thử cả phần đọc hộp thư) |
 | `npm run lint` | Soát lỗi code thường gặp |
 | `npm run build` | Đóng gói web để đưa lên mạng (ra thư mục `dist`) |
 | `npm run build:single` | Gộp cả web vào một file HTML trong `dist-single`, bấm đúp là chơi (phần online thì đánh với "bạn bè ảo") |
@@ -96,8 +106,13 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 | `src/online/ChatPanel.tsx`, `useChat.ts`, `chat.css` | Khung chat, nút Chat và bong bóng thoại trên điện thoại; tin chưa đọc, tiếng báo tin mới |
 | `src/online/connection.ts` | Đường dây WebSocket tới máy chủ: tự nối lại, đo độ trễ mạng |
 | `src/online/demo.ts` | Máy chủ giả và bạn bè ảo cho bản chơi thử một file |
-| `worker/` | Máy chủ trên Cloudflare: `index.ts` nhận yêu cầu tạo phòng, `room-server.ts` là "trọng tài" của mỗi phòng (Durable Object) |
+| `worker/` | Máy chủ trên Cloudflare: `index.ts` nhận yêu cầu tạo phòng, nhận góp ý và kiểm tra chìa khoá hộp thư; `room-server.ts` là "trọng tài" của mỗi phòng (Durable Object); `feedback-box.ts` là hộp thư góp ý (một Durable Object cho cả web) |
 | `tools/online/check-server.mjs` | Kiểm tra máy chủ chạy thật bằng hai người chơi giả |
+| `src/feedback/feedback.ts` | Góp ý: các loại, giới hạn độ dài và lượt gửi, cách làm sạch và kiểm tra góp ý (máy chủ và web dùng chung) |
+| `src/feedback/FeedbackForm.tsx`, `Inbox.tsx`, `feedback.css` | Nút Góp ý, form góp ý, và trang hộp thư của chủ web |
+| `src/feedback/context.ts` | Thông tin gửi kèm góp ý: trang, ván đang chơi, loại máy, trình duyệt, chủ đề, bộ tiếng, bản web |
+| `src/feedback/api.ts`, `demo.ts` | Gửi góp ý, đọc hộp thư, nhớ chìa khoá; `demo.ts` là hộp thư giả trong trình duyệt cho bản chơi thử |
+| `tools/feedback/check-feedback.mjs` | Kiểm tra phần góp ý trên máy chủ chạy thật |
 | `src/sound.ts` | Âm thanh: nước nào kêu tiếng gì, mở khoá tiếng ở lần chạm đầu, đổi bộ tiếng, tắt/bật tiếng, nghe thử |
 | `src/soundCatalog.ts` | Tên, nhóm, lời tả của từng bộ tiếng và các đoạn nghe thử trong bảng chọn |
 | `src/sounds/` | Các file âm thanh (MP3), mỗi bộ tiếng một thư mục |
@@ -109,14 +124,14 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 | `src/components/Board.tsx` | Bàn cờ (bọc thư viện chessground) |
 | `src/components/` | Các mảnh giao diện khác: thanh người chơi kèm đồng hồ và quân đã ăn, chọn thời gian, tên người chơi, chọn quân phong cấp, cột và dải nước đi, thanh nút chỉnh bàn cờ, thẻ kết quả và thống kê ván, bảng chọn chủ đề, bảng chọn bộ tiếng |
 | `src/boardView.ts` | Cỡ bàn cờ (Phóng to, Thu nhỏ) và chế độ toàn màn hình |
-| `src/Root.tsx`, `src/router.ts` | Chọn trang theo địa chỉ: `/` chơi một máy, `/online` tạo phòng, `/phong/<mã>` phòng chơi |
+| `src/Root.tsx`, `src/router.ts` | Chọn trang theo địa chỉ: `/` chơi một máy, `/online` tạo phòng, `/phong/<mã>` phòng chơi, `/hop-thu` hộp thư góp ý |
 | `src/App.tsx` | Trang chơi chung một máy, giữ trạng thái ván cờ |
 | `src/index.css` | Màu sắc, bố cục, chế độ sáng/tối |
-| `wrangler.jsonc` | Cài đặt để Cloudflare build và đưa web lên mạng, khai báo máy chủ phòng chơi |
+| `wrangler.jsonc` | Cài đặt để Cloudflare build và đưa web lên mạng, khai báo máy chủ phòng chơi và hộp thư góp ý |
 
 ## Web lên mạng thế nào
 
-Web chạy trên Cloudflare Workers, gói miễn phí. Gồm hai phần: các file của trang web (Cloudflare gửi thẳng cho trình duyệt), và một máy chủ nhỏ trong thư mục `worker/` chỉ chạy cho các địa chỉ `/api/...` của phần chơi online. Mỗi phòng chơi là một **Durable Object**: một "trọng tài" riêng trên Cloudflare, cả hai người chơi cùng nối tới, giữ bàn cờ và đồng hồ, lưu lại được kể cả khi máy chủ khởi động lại. Gói miễn phí cho dùng Durable Object loại lưu bằng SQLite, đủ cho hội bạn chơi. Phòng bỏ không 30 ngày thì tự xoá.
+Web chạy trên Cloudflare Workers, gói miễn phí. Gồm hai phần: các file của trang web (Cloudflare gửi thẳng cho trình duyệt), và một máy chủ nhỏ trong thư mục `worker/` chỉ chạy cho các địa chỉ `/api/...` của phần chơi online. Mỗi phòng chơi là một **Durable Object**: một "trọng tài" riêng trên Cloudflare, cả hai người chơi cùng nối tới, giữ bàn cờ và đồng hồ, lưu lại được kể cả khi máy chủ khởi động lại. Gói miễn phí cho dùng Durable Object loại lưu bằng SQLite, đủ cho hội bạn chơi. Phòng bỏ không 30 ngày thì tự xoá. Hộp thư góp ý cũng là một Durable Object như vậy (một cái cho cả web), góp ý lưu trong đó tới khi chủ web xoá.
 
 Mỗi lần một Pull Request được Merge vào nhánh `main`, Cloudflare tự tải code về, chạy `npm run build` rồi đưa bản mới lên, mất khoảng 1–2 phút. Pull Request chưa Merge thì web chính không bị đụng tới. Muốn chơi thử trước khi Merge thì dùng bản một file (`npm run build:single`).
 

@@ -8,6 +8,7 @@ import { BoardTools } from '../components/BoardTools'
 import { Piece } from '../components/Piece'
 import { TimeControlPicker } from '../components/TimeControlPicker'
 import { TopBar } from '../components/TopBar'
+import { PageFoot } from '../feedback/FeedbackForm'
 import { DEFAULT_CONTROL, TIME_CONTROLS, describeControl, formatClock, sameControl, type TimeControl } from '../game/clock'
 import { navigate } from '../router'
 import { playSound } from '../sound'
@@ -26,6 +27,7 @@ function Shell({ children }: { children: ReactNode }) {
     <div className="app">
       <TopBar switchTo={{ path: '/', label: 'Chơi một máy' }} />
       {children}
+      <PageFoot />
     </div>
   )
 }

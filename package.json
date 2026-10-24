@@ -12,6 +12,7 @@
     "sounds": "node tools/sounds/make-sounds.mjs",
     "test": "vitest run",
     "test:server": "node tools/online/check-server.mjs",
+    "test:feedback": "node tools/feedback/check-feedback.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

@@ -1,0 +1,549 @@
+/* ---------- Nút Góp ý ---------- */
+/* Chỉ là hình phong thư cho đầu trang khỏi rườm rà chữ. Máy có chuột: rê vào thì chữ "Góp ý" chạy ra bên trái hình.
+   Nút đứng đầu nhóm nút bên phải (nhóm bám mép phải), nên chữ chạy ra chiếm chỗ trống bên trái, các nút khác đứng yên. */
+.fb-btn {
+  position: relative;
+  width: auto;
+  min-width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 8px;
+  font: inherit;
+}
+
+.fb-btn svg {
+  flex: none;
+}
+
+.fb-btn__label {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition:
+    max-width 220ms ease,
+    opacity 160ms ease,
+    margin 220ms ease;
+}
+
+/* Số góp ý mới: chỉ máy của chủ web thấy */
+.fb-btn__badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border: 2px solid var(--bg);
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* Đầu trang chỉ đủ chỗ cho nút thứ tư từ 430px trở lên. Điện thoại hẹp hơn: nút nằm cuối trang. */
+.fb-btn--top {
+  display: none;
+}
+
+.page-foot {
+  display: flex;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+@media (min-width: 430px) {
+  .fb-btn--top {
+    display: inline-flex;
+  }
+
+  .page-foot {
+    display: none;
+  }
+}
+
+/* Màn hình rộng mới có chỗ cho chữ chạy ra. Máy cảm ứng không rê chuột được: chạm là mở form luôn. */
+@media (min-width: 640px) {
+  .fb-btn--top:focus-visible .fb-btn__label {
+    max-width: 5em;
+    margin-right: 6px;
+    opacity: 1;
+  }
+}
+
+@media (hover: hover) and (min-width: 640px) {
+  .fb-btn--top:hover .fb-btn__label {
+    max-width: 5em;
+    margin-right: 6px;
+    opacity: 1;
+  }
+}
+
+/* ---------- Form góp ý ---------- */
+/* Dùng khung của bảng chọn bộ tiếng: máy tính hiện giữa màn hình, điện thoại trượt lên từ cạnh dưới. */
+.fb-sheet {
+  width: min(440px, calc(100% - 32px));
+}
+
+.fb-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 16px;
+}
+
+.fb-kinds {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.fb-kind {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.fb-kind:hover {
+  border-color: var(--accent);
+}
+
+.fb-kind input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.fb-kind__icon {
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+.fb-kind--on,
+.fb-kind--on:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.fb-kind:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.fb-input {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  font-size: 16px; /* 16px để iPhone không tự phóng to trang khi gõ */
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.fb-input::placeholder {
+  color: var(--muted);
+}
+
+.fb-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.fb-text {
+  min-height: 108px;
+  max-height: 40vh;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.fb-count {
+  align-self: flex-end;
+  margin-top: -6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Ô bẫy máy dò tự động: nằm ngoài màn hình, người thật không thấy, không chạm tới được */
+.fb-trap {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.fb-attach {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.fb-attach .link-button {
+  flex: none;
+  padding: 4px 2px;
+}
+
+.fb-context {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.fb-context dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.fb-context dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.fb-problem {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
+.fb-send {
+  padding-block: 12px;
+}
+
+/* Lối vào hộp thư, chỉ máy của chủ web thấy */
+.fb-owner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fb-owner > span:first-child {
+  flex: 1;
+}
+
+.fb-owner__new {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.75rem;
+}
+
+.fb-done {
+  align-items: center;
+  text-align: center;
+  padding-block: 28px 20px;
+}
+
+.fb-done__mark {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 1.7rem;
+  font-weight: 800;
+}
+
+.fb-done__title {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.fb-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.fb-actions .btn {
+  flex: 1;
+}
+
+.fb-owner:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 559px) {
+  .fb-sheet {
+    width: 100%;
+  }
+
+  .fb-body {
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ---------- Hộp thư góp ý (/hop-thu) ---------- */
+.inbox {
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inbox__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.inbox__note {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.inbox__filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Hàng nút lọc: điện thoại thì vuốt ngang */
+.inbox-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin-inline: -16px;
+  padding: 2px 16px;
+  scrollbar-width: none;
+}
+
+.inbox-chip {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.inbox-chip input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.inbox-chip--on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.inbox-chip:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.inbox-chip__n {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.inbox__problem,
+.inbox__empty {
+  margin: 0;
+  padding: 18px 0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.inbox__problem {
+  color: var(--danger);
+}
+
+.inbox__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.letter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.letter--done {
+  background: none;
+}
+
+.letter--done .letter__text {
+  color: var(--muted);
+}
+
+.letter__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.letter__kind {
+  font-weight: 700;
+}
+
+.letter__new {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.letter__time {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.letter__text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.letter__from {
+  margin: -2px 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.letter__from::before {
+  content: '— ';
+}
+
+.letter__more summary {
+  width: fit-content;
+  font-size: 0.8rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.letter__more[open] summary {
+  margin-bottom: 6px;
+}
+
+.letter__game {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.letter__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.letter__actions .btn {
+  padding: 7px 12px;
+  font-size: 0.85rem;
+}
+
+.letter__done--on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.inbox__more {
+  align-self: center;
+  padding-inline: 20px;
+}
+
+.inbox__foot {
+  margin: 8px 0 0;
+  text-align: center;
+}
+
+.inbox-lock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 460px;
+  margin: 24px auto 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.inbox-lock__form {
+  display: flex;
+  gap: 8px;
+}
+
+.inbox-lock__form .btn {
+  flex: none;
+  padding-inline: 18px;
+}
