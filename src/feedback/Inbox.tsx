@@ -1,13 +1,14 @@
 // Hộp thư góp ý (/hop-thu): chỉ chủ web vào được, bằng link riêng có chìa khoá (mở một lần là máy nhớ chìa).
 // Góp ý mới nhất ở trên; lọc theo loại, ẩn góp ý đã xử lý; mỗi góp ý có nút Đã xử lý và Xoá (bấm hai lần cho khỏi
 // lỡ tay). Góp ý có kèm ván thì mở lại được đúng ván đó trên lichess. Nội dung góp ý chỉ hiện dạng chữ: link không
-// bấm được, mã lạ không chạy được.
+// bấm được, mã lạ không chạy được. Nút "Báo về mail" mở phần cài đặt gửi mail cho chủ web khi có góp ý mới.
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { TopBar } from '../components/TopBar'
 import { analysisUrl } from '../game/rules'
 import { FeedbackError, feedbackBackend, ownerKey, readKey, refreshUnread, saveOwnerKey, takeKeyFromLink, type FeedbackProblem } from './api'
 import { ContextLines } from './FeedbackForm'
 import { emptyCounts, FEEDBACK_KINDS, KIND_INFO, type FeedbackCounts, type FeedbackItem, type FeedbackKind } from './feedback'
+import { MailPanel } from './MailPanel'
 import './feedback.css'
 
 const MINUTE = 60 * 1000
@@ -192,6 +193,8 @@ function Mailbox({ ownerKey: key, onWrongKey, onForget }: { ownerKey: string; on
           {feedbackBackend.demo && ' · bản chơi thử: góp ý nằm ngay trong trình duyệt này, có sẵn 3 góp ý mẫu'}
         </p>
       </header>
+
+      <MailPanel ownerKey={key} onWrongKey={onWrongKey} />
 
       <div className="inbox__filters">
         <div className="inbox-chips" role="radiogroup" aria-label="Lọc theo loại">

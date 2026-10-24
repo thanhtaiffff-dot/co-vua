@@ -129,6 +129,19 @@ export function parseQuery(params: URLSearchParams): FeedbackQuery {
   return query
 }
 
+// Thông tin gửi kèm viết thành từng dòng (tên, nội dung), bỏ dòng trống: cho form, hộp thư và thư báo về mail.
+export function contextLines(context: FeedbackContext): [string, string][] {
+  const moves = context.game ? context.game.split(' ').length : 0
+  const lines: [string, string | undefined][] = [
+    ['Trang', context.page],
+    ['Ván', [moves ? `${moves} nước đã đi` : '', context.state ?? ''].filter(Boolean).join(' · ')],
+    ['Máy', context.device],
+    ['Cài đặt', context.settings],
+    ['Bản web', context.version],
+  ]
+  return lines.filter((line): line is [string, string] => !!line[1])
+}
+
 export function emptyCounts(): FeedbackCounts {
   return { all: 0, new: 0, open: 0, bug: 0, idea: 0, praise: 0, other: 0 }
 }

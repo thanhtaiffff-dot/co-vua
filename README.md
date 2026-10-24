@@ -46,6 +46,7 @@ Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước 
 - Form ngắn: chọn loại (**Báo lỗi**, **Ý tưởng**, **Khen**, **Khác**), gõ nội dung (tối đa 1000 ký tự), tên hoặc cách liên lạc (không bắt buộc, điền sẵn tên đã nhập khi chơi online). Lỡ đóng form thì chữ đã gõ vẫn còn.
 - Web tự gửi kèm thông tin để khỏi phải tự kể (bật sẵn, tắt được, bấm **Xem** để thấy hết trước khi gửi): đang ở trang nào, các nước đã đi và tình hình ván, điện thoại hay máy tính, trình duyệt (cả trình duyệt trong app Zalo, Messenger), cỡ màn hình, chủ đề, bộ tiếng, bản web.
 - **Hộp thư góp ý** ở `/hop-thu`, chỉ chủ web mở được, bằng link riêng có chìa khoá (`/hop-thu#khoa=<chìa>`). Mở một lần là máy nhớ chìa; từ đó nút Góp ý trên máy đó có chấm đỏ đếm góp ý mới, và form có lối vào hộp thư. Trong hộp thư: góp ý mới nhất ở trên, lọc theo loại, ẩn góp ý đã xử lý, nút **Đã xử lý**, **Xoá** (bấm hai lần), góp ý có kèm ván thì mở lại ván đó trên lichess. Máy dùng chung thì bấm **Quên chìa khoá trên máy này**.
+- **Báo về mail**: trong hộp thư bấm **Báo về mail** để bật. Mỗi góp ý mới được gửi thành một thư chữ thường tới mail của chủ web, qua [Resend](https://resend.com) (gói miễn phí, 100 thư mỗi ngày, không cần tên miền riêng). Cách bật: đăng nhập resend.com bằng Google đúng Gmail muốn nhận thư, vào API Keys tạo chìa (quyền Sending access), dán chìa và Gmail đó vào hộp thư, bật công tắc rồi bấm **Lưu và gửi thư thử**. Chưa có tên miền riêng thì Resend chỉ gửi tới đúng mail của tài khoản Resend. Chìa Resend chỉ nằm trong hộp thư trên Cloudflare: không nằm trong code, máy chủ không bao giờ trả lại chìa (hộp thư chỉ hiện 4 ký tự cuối). Tối đa 20 thư mỗi ngày (theo giờ Việt Nam), quá thì góp ý vẫn vào hộp thư, chỉ không báo mail. Link trong góp ý bị làm hỏng cố ý trong thư (`hxxps://`, `[.]`) để khỏi bấm nhầm link lừa đảo; thư có link mở hộp thư nhưng không kèm chìa khoá hộp thư.
 - **Chống phá**: mỗi máy (theo địa chỉ mạng) tối đa 5 góp ý mỗi giờ, cả web tối đa 200 góp ý mỗi ngày, hộp giữ tối đa 1000 góp ý (đầy thì chờ chủ web xoá bớt). Ô bẫy ẩn cho máy dò tự động: điền vào thì máy chủ giả vờ nhận rồi bỏ. Chỉ nhận góp ý gửi từ chính web này. Góp ý chỉ hiện dạng chữ: link không bấm được, mã lạ không chạy được.
 - **Riêng tư**: máy chủ không lưu địa chỉ mạng của người gửi, chỉ giữ một dãy mã hoá một chiều để đếm lượt gửi, sau một ngày tự xoá. Code chỉ giữ "dấu vân tay" (SHA-256) của chìa khoá hộp thư, không suy ngược ra chìa được, nên kho code công khai vẫn an toàn. Muốn đổi chìa: tạo chìa mới (24 byte ngẫu nhiên) rồi thay dòng `OWNER_KEY_SHA256` trong `worker/index.ts`.
 
@@ -82,7 +83,7 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 | `npm run dev:server` | Chạy máy chủ phòng chơi online trên máy (mở thêm một Terminal, để chạy song song với `npm run dev`) |
 | `npm test` | Chạy các bài kiểm tra luật cờ, đồng hồ, âm thanh, chủ đề, phòng chơi online |
 | `npm run test:server` | Kiểm tra máy chủ phòng chạy thật (cần `npm run dev:server` đang chạy) |
-| `npm run test:feedback` | Kiểm tra phần góp ý trên máy chủ chạy thật: gửi, chặn gửi dồn, ô bẫy, hộp thư không có chìa thì không vào được (cần `npm run dev:server` vừa chạy lại với hộp thư trống; đặt `OWNER_KEY=<chìa>` để thử cả phần đọc hộp thư) |
+| `npm run test:feedback` | Kiểm tra phần góp ý trên máy chủ chạy thật: gửi, chặn gửi dồn, ô bẫy, hộp thư không có chìa thì không vào được (cần `npm run dev:server` vừa chạy lại với hộp thư trống; đặt `OWNER_KEY=<chìa>` để thử cả phần đọc hộp thư và cài đặt báo mail, dùng chìa Resend giả nên không gửi thư thật) |
 | `npm run lint` | Soát lỗi code thường gặp |
 | `npm run build` | Đóng gói web để đưa lên mạng (ra thư mục `dist`) |
 | `npm run build:single` | Gộp cả web vào một file HTML trong `dist-single`, bấm đúp là chơi (phần online thì đánh với "bạn bè ảo") |
@@ -106,12 +107,13 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 | `src/online/ChatPanel.tsx`, `useChat.ts`, `chat.css` | Khung chat, nút Chat và bong bóng thoại trên điện thoại; tin chưa đọc, tiếng báo tin mới |
 | `src/online/connection.ts` | Đường dây WebSocket tới máy chủ: tự nối lại, đo độ trễ mạng |
 | `src/online/demo.ts` | Máy chủ giả và bạn bè ảo cho bản chơi thử một file |
-| `worker/` | Máy chủ trên Cloudflare: `index.ts` nhận yêu cầu tạo phòng, nhận góp ý và kiểm tra chìa khoá hộp thư; `room-server.ts` là "trọng tài" của mỗi phòng (Durable Object); `feedback-box.ts` là hộp thư góp ý (một Durable Object cho cả web) |
+| `worker/` | Máy chủ trên Cloudflare: `index.ts` nhận yêu cầu tạo phòng, nhận góp ý, kiểm tra chìa khoá hộp thư và gửi mail báo góp ý mới; `room-server.ts` là "trọng tài" của mỗi phòng (Durable Object); `feedback-box.ts` là hộp thư góp ý (một Durable Object cho cả web, giữ cả cài đặt báo mail) |
 | `tools/online/check-server.mjs` | Kiểm tra máy chủ chạy thật bằng hai người chơi giả |
 | `src/feedback/feedback.ts` | Góp ý: các loại, giới hạn độ dài và lượt gửi, cách làm sạch và kiểm tra góp ý (máy chủ và web dùng chung) |
 | `src/feedback/FeedbackForm.tsx`, `Inbox.tsx`, `feedback.css` | Nút Góp ý, form góp ý, và trang hộp thư của chủ web |
 | `src/feedback/context.ts` | Thông tin gửi kèm góp ý: trang, ván đang chơi, loại máy, trình duyệt, chủ đề, bộ tiếng, bản web |
 | `src/feedback/api.ts`, `demo.ts` | Gửi góp ý, đọc hộp thư, nhớ chìa khoá; `demo.ts` là hộp thư giả trong trình duyệt cho bản chơi thử |
+| `src/feedback/mail.ts`, `MailPanel.tsx` | Báo góp ý mới về mail: soạn thư, gọi Resend, đọc lỗi Resend ra lý do dễ hiểu, giới hạn 20 thư mỗi ngày; `MailPanel.tsx` là mục **Báo về mail** trong hộp thư |
 | `tools/feedback/check-feedback.mjs` | Kiểm tra phần góp ý trên máy chủ chạy thật |
 | `src/sound.ts` | Âm thanh: nước nào kêu tiếng gì, mở khoá tiếng ở lần chạm đầu, đổi bộ tiếng, tắt/bật tiếng, nghe thử |
 | `src/soundCatalog.ts` | Tên, nhóm, lời tả của từng bộ tiếng và các đoạn nghe thử trong bảng chọn |

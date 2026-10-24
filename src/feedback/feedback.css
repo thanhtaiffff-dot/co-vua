@@ -547,3 +547,121 @@
   flex: none;
   padding-inline: 18px;
 }
+
+/* ---------- Báo về mail (trong hộp thư) ---------- */
+/* Bình thường chỉ là một nút nhỏ dưới tên hộp thư; bấm mới mở phần cài đặt. */
+.mail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.mail-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mail-toggle:hover {
+  border-color: var(--accent);
+}
+
+.mail-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.mail-toggle__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.mail-toggle__dot--on {
+  background: var(--accent);
+}
+
+.mail-toggle__chevron {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.mail-panel {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.mail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mail-field__name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.mail-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.mail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mail-actions .btn {
+  flex: 1 1 140px;
+  padding-inline: 12px;
+}
+
+.mail-status {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mail-guide summary {
+  width: fit-content;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mail-guide ol {
+  margin: 8px 0 0;
+  padding-left: 1.3em;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.mail-guide a {
+  color: var(--accent);
+  font-weight: 600;
+}

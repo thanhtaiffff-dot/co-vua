@@ -2,12 +2,12 @@
 // bấm: điện thoại thì trượt lên từ cạnh dưới, máy tính thì hiện giữa màn hình, như bảng chọn bộ tiếng.
 // Form gồm loại góp ý, nội dung, tên hay cách liên lạc (không bắt buộc), và thông tin ván, máy gửi kèm (tắt được,
 // xem được trước khi gửi). Máy của chủ web thấy thêm số góp ý mới và lối vào hộp thư.
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react'
 import { myName } from '../online/identity'
 import { navigate, usePath } from '../router'
 import { FeedbackError, feedbackBackend, ownerKey, refreshUnread, useUnread, type FeedbackProblem } from './api'
 import { gatherContext } from './context'
-import { CONTACT_MAX, FEEDBACK_KINDS, KIND_INFO, OWNER_NAME, TEXT_MAX, type FeedbackContext, type FeedbackKind } from './feedback'
+import { CONTACT_MAX, contextLines, FEEDBACK_KINDS, KIND_INFO, OWNER_NAME, TEXT_MAX, type FeedbackContext, type FeedbackKind } from './feedback'
 import { onOpenFeedback, openFeedback } from './sheetState'
 import './feedback.css'
 
@@ -62,26 +62,16 @@ export function PageFoot() {
   )
 }
 
-function Line({ name, value }: { name: string; value?: string }) {
-  if (!value) return null
-  return (
-    <>
-      <dt>{name}</dt>
-      <dd>{value}</dd>
-    </>
-  )
-}
-
 // Thông tin gửi kèm, hiện cho người gửi xem trước (và cho chủ web đọc trong hộp thư).
 export function ContextLines({ context }: { context: FeedbackContext }) {
-  const moves = context.game ? context.game.split(' ').length : 0
   return (
     <dl className="fb-context">
-      <Line name="Trang" value={context.page} />
-      <Line name="Ván" value={[moves ? `${moves} nước đã đi` : '', context.state ?? ''].filter(Boolean).join(' · ')} />
-      <Line name="Máy" value={context.device} />
-      <Line name="Cài đặt" value={context.settings} />
-      <Line name="Bản web" value={context.version} />
+      {contextLines(context).map(([name, value]) => (
+        <Fragment key={name}>
+          <dt>{name}</dt>
+          <dd>{value}</dd>
+        </Fragment>
+      ))}
     </dl>
   )
 }
