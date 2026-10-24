@@ -428,7 +428,7 @@
 }
 
 /* ---------- Bong bóng thoại trên thanh tên đối thủ ---------- */
-/* Đè lên tên và quân đã ăn, chừa chỗ đồng hồ bên phải; đuôi bong bóng chỉ về chấm màu quân của người nói. */
+/* Đè lên tên và quân đã ăn, chừa chỗ đồng hồ bên phải; đuôi bong bóng chỉ về ảnh đại diện của người nói. */
 .bar-anchor {
   position: relative;
 }
@@ -436,9 +436,9 @@
 .chat-bubble {
   position: absolute;
   top: 50%;
-  left: 30px;
+  left: 54px;
   z-index: 6;
-  max-width: calc(100% - 140px);
+  max-width: calc(100% - 172px);
   min-height: calc(100% - 6px);
   display: flex;
   align-items: center;

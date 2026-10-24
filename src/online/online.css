@@ -32,14 +32,10 @@
   white-space: nowrap;
 }
 
-/* Lúc chờ bạn bè: chỗ ngồi còn trống, màu chưa bốc thì chấm nửa trắng nửa đen */
+/* Lúc chờ bạn bè: chỗ ngồi còn trống */
 .player__name--empty {
   color: var(--muted);
   font-weight: 600;
-}
-
-.player__dot--random {
-  background: linear-gradient(90deg, #fbfbf8 50%, #1d1d1b 50%);
 }
 
 .player__away {

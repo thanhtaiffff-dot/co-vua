@@ -220,14 +220,25 @@ export default function App() {
 
       <main className="table">
         <section className="board-col">
-          <PlayerBar color={top} name={name(top)} captured={captured[top]} score={material[top].score} active={!over && turn === top} clock={clockFace(top)} />
+          <PlayerBar
+            color={top}
+            name={names[top].trim()}
+            rival={names[bottom].trim()}
+            label={name(top)}
+            captured={captured[top]}
+            score={material[top].score}
+            active={!over && turn === top}
+            clock={clockFace(top)}
+          />
           <div className={`board-frame${review.reviewing ? ' board-frame--review' : ''}`}>
             <Board config={config} onMove={handleMove} />
             {picking && <PromotionPicker color={turn} onPick={pickPromotion} onCancel={cancelPromotion} />}
           </div>
           <PlayerBar
             color={bottom}
-            name={name(bottom)}
+            name={names[bottom].trim()}
+            rival={names[top].trim()}
+            label={name(bottom)}
             captured={captured[bottom]}
             score={material[bottom].score}
             active={!over && turn === bottom}

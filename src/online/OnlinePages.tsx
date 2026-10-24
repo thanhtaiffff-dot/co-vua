@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Color } from 'chess.js'
 import type { Config } from '@lichess-org/chessground/config'
+import { Avatar } from '../components/Avatar'
 import { Board } from '../components/Board'
 import { BoardTools } from '../components/BoardTools'
 import { Piece } from '../components/Piece'
@@ -168,17 +169,20 @@ export function CreatePage({ backend }: { backend: Backend }) {
   )
 }
 
-// Thanh tên một chỗ ngồi lúc chờ: giống thanh người chơi trong ván, đồng hồ đứng yên ở mức giờ ban đầu.
-function SeatBar({ color, name, control, empty = false }: { color: ColorChoice; name: string; control: TimeControl | null; empty?: boolean }) {
+// Thanh tên một chỗ ngồi lúc chờ: giống thanh người chơi trong ván (ảnh đại diện, chữ, đồng hồ đứng yên ở mức giờ ban
+// đầu). `name` là tên đã nhập để vẽ ảnh đại diện; chỗ còn trống thì ảnh nhấp nháy chờ bạn bè vào.
+type Seat = { color: ColorChoice; name: string; text: string; control: TimeControl | null; empty?: boolean }
+
+function SeatBar({ color, name, text, control, empty = false }: Seat) {
   return (
     <div className="player">
-      <span className={`player__dot player__dot--${color}`} aria-hidden="true" />
+      <Avatar name={name} waiting={empty} />
       <span className={`player__name${empty ? ' player__name--empty' : ''}`} role={empty ? 'status' : undefined}>
-        {name}
+        {text}
       </span>
       {empty && <span className="waiting__dot" aria-hidden="true" />}
       {control && (
-        <span className="clock" role="timer" aria-label={`Đồng hồ của ${name}`}>
+        <span className={`clock${color === 'random' ? '' : ` clock--${color}`}`} role="timer" aria-label={`Đồng hồ của ${text}`}>
           {formatClock(control.minutes * 60_000)}
         </span>
       )}
@@ -224,11 +228,11 @@ function Waiting({ room, backend }: { room: RoomView; backend: Backend }) {
   return (
     <main className="table">
       <section className="board-col">
-        <SeatBar color={guestColor} name="Đang chờ bạn bè…" control={room.control} empty />
+        <SeatBar color={guestColor} name="" text="Đang chờ bạn bè…" control={room.control} empty />
         <div className="board-frame">
           <Board config={config} onMove={() => {}} />
         </div>
-        <SeatBar color={room.hostColor} name={room.host.name || 'Bạn'} control={room.control} />
+        <SeatBar color={room.hostColor} name={room.host.name} text={room.host.name || 'Bạn'} control={room.control} />
         <div className="board-under">
           <BoardTools />
         </div>

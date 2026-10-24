@@ -58,8 +58,10 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
   const me = game.you
   const seated = me !== null
   const opponent = me ? other(me) : null
-  // Tên hiện trên thanh người chơi và tỉ số: tên người đó đã nhập; để trống thì mình là "Bạn", người kia gọi theo màu quân.
+  // Tên trong tỉ số và lời báo: tên người đó đã nhập; để trống thì mình là "Bạn", người kia gọi theo màu quân.
   const name = (color: Color) => game.players[color].name || (color === me ? 'Bạn' : COLOR_NAME[color])
+  // Chữ trên thanh người chơi khi chưa nhập tên: mình là "Bạn", người kia là "Đối thủ" (người xem thì để trống).
+  const barFallback = (color: Color) => (me ? (color === me ? 'Bạn' : 'Đối thủ') : '')
   // Tên trong câu: chính mình thì gọi là "bạn".
   const who = (color: Color, capital = true) => (color === me ? (capital ? 'Bạn' : 'bạn') : name(color))
 
@@ -351,8 +353,12 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
         <div className="bar-anchor">
           <PlayerBar
             color={top}
-            name={name(top)}
+            name={game.players[top].name}
+            fallback={barFallback(top)}
+            rival={game.players[bottom].name}
+            label={name(top)}
             away={!game.players[top].online && top !== me}
+            online={top !== me}
             captured={captured[top]}
             score={material[top].score}
             active={!over && turn === top}
@@ -367,8 +373,12 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
         <div className="bar-anchor">
           <PlayerBar
             color={bottom}
-            name={name(bottom)}
+            name={game.players[bottom].name}
+            fallback={barFallback(bottom)}
+            rival={game.players[top].name}
+            label={name(bottom)}
             away={!game.players[bottom].online && bottom !== me}
+            online={bottom !== me}
             captured={captured[bottom]}
             score={material[bottom].score}
             active={!over && turn === bottom}
