@@ -14,6 +14,7 @@ Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước 
 - **Xin đi lại** (bấm nhầm) như chess.com: đối thủ thấy lời xin, bấm **Cho đi lại** hay **Không cho**. Vừa đi xong mà xin thì lùi nước đó; đang tới lượt mình mà xin thì lùi cả nước đối thủ vừa đi. Đồng hồ và thời gian nghĩ quay về như trước các nước bị lùi. Mỗi lượt xin một lần; đối thủ đi tiếp thay vì trả lời là coi như không cho.
 - Xin hòa, đầu hàng (bấm hai lần). Chưa ai đi quá một nước thì nút thành **Huỷ ván**, không tính thắng thua.
 - **Đấu ván nữa**: hai bên cùng bấm thì vào ván mới, tự đổi màu cho nhau, tỉ số cộng dồn. Bên kia có nút **Từ chối**; bị từ chối thì không mời lại được nữa (khỏi làm phiền), trừ khi bên kia đổi ý mời lại.
+- **Chat** giữa hai người chơi: máy tính thì khung chat nằm bên trái bàn cờ, điện thoại thì có nút Chat ở góc dưới (chấm đỏ đếm tin chưa đọc), tin mới của đối thủ hiện thành bong bóng trên thanh tên họ vài giây. Có hàng câu nhanh đổi theo lúc ván (đầu ván, giữa ván, hết ván) và bảng emoji. Nút **Tắt chat** (trình duyệt nhớ cho các ván sau; đối thủ thấy là mình đã tắt). Người xem không đọc được chat. Máy chủ giữ 100 câu gần nhất suốt phòng (tải lại trang, đấu ván nữa vẫn còn); mỗi câu tối đa 200 ký tự, mỗi người gửi liền 5 câu rồi mỗi giây một câu; link trong tin chỉ là chữ, không bấm được.
 - Rớt mạng, khoá màn hình, tải lại trang: tự nối lại, vào đúng ghế cũ. Đối thủ mất kết nối thì hiện chữ "mất kết nối" cạnh tên.
 - Người thứ ba mở link khi phòng đã đủ hai người thì chỉ được xem. Mỗi phòng tối đa 8 người xem; người chơi thì lúc nào cũng vào được (mỗi người mở tối đa 4 tab hoặc máy cùng lúc, mở thêm thì tab cũ nhất tạm ngắt).
 - **Chống phá ván**: máy chủ bỏ qua thư rác, thư quá dài, thư gửi quá dày (quá 20 thư liền một lúc rồi 5 thư mỗi giây), nên người có link không làm đơ được ván hay làm đồng hồ bị trừ oan.
@@ -92,6 +93,7 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 | `src/online/premove.ts` | Đi trước nhiều nước: bàn cờ hiện quân ở chỗ mới, đổi nước đi trước thành nước đi thật |
 | `src/online/protocol.ts` | Các loại thư qua lại giữa máy người chơi và máy chủ |
 | `src/online/OnlinePages.tsx`, `OnlineGame.tsx` | Trang tạo phòng, chờ bạn bè, lời mời, và ván cờ online |
+| `src/online/ChatPanel.tsx`, `useChat.ts`, `chat.css` | Khung chat, nút Chat và bong bóng thoại trên điện thoại; tin chưa đọc, tiếng báo tin mới |
 | `src/online/connection.ts` | Đường dây WebSocket tới máy chủ: tự nối lại, đo độ trễ mạng |
 | `src/online/demo.ts` | Máy chủ giả và bạn bè ảo cho bản chơi thử một file |
 | `worker/` | Máy chủ trên Cloudflare: `index.ts` nhận yêu cầu tạo phòng, `room-server.ts` là "trọng tài" của mỗi phòng (Durable Object) |
@@ -127,7 +129,7 @@ Cloudflare chỉ biết có lần Merge mới khi ứng dụng **Cloudflare Work
 ## Lộ trình
 
 1. **Bàn cờ chơi chung một máy** (xong).
-2. **Chơi online**: tạo phòng, gửi link cho bạn, chọn màu, đồng hồ do máy chủ giữ, đi trước nhiều nước, xin đi lại, xin hòa, đầu hàng, đấu ván nữa, xem lại nước cũ (xong). Còn: chat giữa hai người chơi, xử thắng khi đối thủ bỏ đi quá lâu.
+2. **Chơi online**: tạo phòng, gửi link cho bạn, chọn màu, đồng hồ do máy chủ giữ, đi trước nhiều nước, xin đi lại, xin hòa, đầu hàng, đấu ván nữa, xem lại nước cũ, chat giữa hai người chơi (xong). Còn: xử thắng khi đối thủ bỏ đi quá lâu.
 3. Tài khoản, điểm Elo, tên miền riêng.
 4. Máy phân tích Stockfish, cài như ứng dụng trên điện thoại.
 

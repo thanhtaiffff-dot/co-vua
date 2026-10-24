@@ -17,14 +17,20 @@ import { END_DELAY, playMove, playSound } from '../sound'
 import { useNow } from '../useNow'
 import { showBoard, useReview } from '../useReview'
 import { navigate } from '../router'
+import { loadSaved, save } from '../storage'
+import { ChatBubble, ChatButton, ChatPanel } from './ChatPanel'
 import type { ConnectionStatus } from './connection'
 import { MAX_PREMOVES, premoveBoard, premoveToMove, type Premove } from './premove'
-import { fromUci, takebackPlies, toUci, type ClientMessage, type GameView, type OnlineStatus } from './protocol'
+import { fromUci, takebackPlies, toUci, type ClientMessage, type GameView, type OnlineStatus, type RoomView } from './protocol'
+import { useChatAlerts, useMediaQuery, type ChatPhase } from './useChat'
+import type { ChatLog } from './useRoom'
 
 const SIDE: Record<Color, 'white' | 'black'> = { w: 'white', b: 'black' }
 const COLOR_NAME: Record<Color, string> = { w: 'Trắng', b: 'Đen' }
 const other = (color: Color): Color => (color === 'w' ? 'b' : 'w')
 const NO_PREMOVES: Premove[] = []
+// Màn hình rộng thế này trở lên thì khung chat là cột bên trái bàn cờ; hẹp hơn thì là nút Chat nổi (khớp chat.css).
+const CHAT_SIDE_QUERY = '(min-width: 1180px)'
 
 // Ván vẫn đi tiếp từ thế cờ `anchor` (các nước viết liền, cách nhau dấu cách), không bị lùi lại hay rẽ sang hướng khác.
 function continues(moves: string, anchor: string): boolean {
@@ -33,6 +39,8 @@ function continues(moves: string, anchor: string): boolean {
 
 type Props = {
   game: GameView
+  role: RoomView['role']
+  chat: ChatLog
   receivedAt: number
   connection: ConnectionStatus
   send: (message: ClientMessage) => void
@@ -45,7 +53,7 @@ function points(score: number): string {
   return score % 1 ? `${whole || ''}½` : String(whole)
 }
 
-export function OnlineGame({ game, receivedAt, connection, send, lag }: Props) {
+export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag }: Props) {
   const me = game.you
   const seated = me !== null
   const opponent = me ? other(me) : null
@@ -167,6 +175,31 @@ export function OnlineGame({ game, receivedAt, connection, send, lag }: Props) {
     return () => clearTimeout(timer)
   }, [confirmResign])
 
+  // ---------- Chat (chỉ hai người chơi) ----------
+  const mine = role === 'visitor' ? null : role
+  const chatting = mine !== null && opponent !== null
+  const chatSide = useMediaQuery(CHAT_SIDE_QUERY)
+  const [chatSheet, setChatSheet] = useState(false)
+  // Tắt chat thì trình duyệt nhớ cho các ván sau, và báo máy chủ để bên kia biết.
+  const [chatOff, setChatOff] = useState(() => loadSaved('chat-off', false))
+  const serverChatOff = me ? game.players[me].chatOff : chatOff
+  useEffect(() => {
+    if (seated && serverChatOff !== chatOff) send({ t: 'chatOff', off: chatOff })
+  }, [seated, serverChatOff, chatOff, send])
+  const alerts = useChatAlerts(chat.lines, chat.base, mine ?? 'host', chatOff, chatSide || chatSheet)
+
+  useEffect(() => {
+    if (!chatSheet) return
+    const close = (event: KeyboardEvent) => event.key === 'Escape' && setChatSheet(false)
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
+  }, [chatSheet])
+
+  function toggleChat() {
+    setChatOff(!chatOff)
+    save('chat-off', !chatOff)
+  }
+
   // ---------- Đi quân ----------
   const play = useCallback(
     (move: PlayedMove) => {
@@ -278,6 +311,25 @@ export function OnlineGame({ game, receivedAt, connection, send, lag }: Props) {
   const askedOffer = me !== null && game.takeback === me
   const drawOffered = me !== null && game.drawOffer === me
 
+  const chatPhase: ChatPhase = over ? 'end' : moves.length < 4 ? 'start' : 'middle'
+  const chatPanel = (onClose?: () => void) =>
+    mine &&
+    opponent && (
+      <ChatPanel
+        lines={chat.lines}
+        mine={mine}
+        them={name(opponent)}
+        themOff={game.players[opponent].chatOff}
+        off={chatOff}
+        phase={chatPhase}
+        onSend={(text) => send({ t: 'chat', text })}
+        onToggle={toggleChat}
+        onClose={onClose}
+      />
+    )
+  // Bong bóng thoại hiện trên thanh tên đối thủ.
+  const bubble = (color: Color) => alerts.bubble && color === opponent && <ChatBubble key={alerts.bubble.id} text={alerts.bubble.text} />
+
   const match = showMatch && (
     <p className="match">
       Tỉ số: {name('w')} <b>{points(game.score.w)}</b> – <b>{points(game.score.b)}</b> {name('b')}
@@ -285,30 +337,39 @@ export function OnlineGame({ game, receivedAt, connection, send, lag }: Props) {
   )
 
   return (
-    <main className="table">
+    <main className={`table${chatting ? ' table--chat' : ''}`}>
+      {chatting && chatSide && <aside className="chat-col">{chatPanel()}</aside>}
+      {chatting && !chatSide && (chatSheet ? chatPanel(() => setChatSheet(false)) : <ChatButton unread={alerts.unread} off={chatOff} onClick={() => setChatSheet(true)} />)}
+
       <section className="board-col">
-        <PlayerBar
-          color={top}
-          name={name(top)}
-          away={!game.players[top].online && top !== me}
-          captured={captured[top]}
-          score={material[top].score}
-          active={!over && turn === top}
-          clock={clockFace(top)}
-        />
+        <div className="bar-anchor">
+          <PlayerBar
+            color={top}
+            name={name(top)}
+            away={!game.players[top].online && top !== me}
+            captured={captured[top]}
+            score={material[top].score}
+            active={!over && turn === top}
+            clock={clockFace(top)}
+          />
+          {bubble(top)}
+        </div>
         <div className={`board-frame${review.reviewing ? ' board-frame--review' : ''}`}>
           <Board config={config} onMove={handleMove} onPremove={handlePremove} onPremoveCancel={premoves.length > 0 ? cancelPremoves : undefined} />
           {picking && <PromotionPicker color={turn} onPick={pickPromotion} onCancel={() => setPromotion(null)} />}
         </div>
-        <PlayerBar
-          color={bottom}
-          name={name(bottom)}
-          away={!game.players[bottom].online && bottom !== me}
-          captured={captured[bottom]}
-          score={material[bottom].score}
-          active={!over && turn === bottom}
-          clock={clockFace(bottom)}
-        />
+        <div className="bar-anchor">
+          <PlayerBar
+            color={bottom}
+            name={name(bottom)}
+            away={!game.players[bottom].online && bottom !== me}
+            captured={captured[bottom]}
+            score={material[bottom].score}
+            active={!over && turn === bottom}
+            clock={clockFace(bottom)}
+          />
+          {bubble(bottom)}
+        </div>
         <div className="board-under">
           <MoveStrip sans={sans} times={times} shown={review.shown} onGo={review.go} />
           <BoardTools onFlip={() => setFlipped((f) => !f)} />

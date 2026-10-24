@@ -1,5 +1,5 @@
 // Kiểm tra máy chủ phòng chạy thật: tạo phòng, hai "người chơi" nối WebSocket, đi một ván chiếu bí nhanh,
-// rồi tái đấu xem có đổi màu không; sau đó thử các giới hạn chống phá ván (người xem, số tab, thư rác, gửi dồn dập).
+// rồi tái đấu xem có đổi màu không; sau đó thử chat và các giới hạn chống phá ván (người xem, số tab, thư rác, gửi dồn dập).
 // Cần chạy máy chủ trước: `npm run build && npx wrangler dev`.
 // Cách dùng: node tools/online/check-server.mjs [địa chỉ, mặc định http://127.0.0.1:8787]
 const base = process.argv[2] ?? 'http://127.0.0.1:8787'
@@ -199,6 +199,54 @@ await a.send({ t: 'hello', token: limitsHost })
 await sleep(500)
 if (a.states.length + b.states.length !== before) fail('chào lại mà máy chủ vẫn báo cho cả phòng')
 console.log('Chào lại: bị bỏ qua')
+
+// Chat: hai người chơi thấy nhau, người xem không thấy; nối lại thì nhận cả chat cũ; tắt chat thì bên kia thấy.
+const watcher = player(room2)
+await watcher.send({ t: 'hello', token: newToken('viewer') })
+await watcher.until((m) => m.t === 'state', 'người xem vào phòng thử chat')
+await a.send({ t: 'chat', text: '  Chào\n nha  ' })
+const said = await b.until((m) => m.t === 'chat' && !m.all, 'bạn bè nhận câu chat')
+if (said.lines.length !== 1 || said.lines[0].text !== 'Chào nha' || said.lines[0].by !== 'host') fail('câu chat sai: ' + JSON.stringify(said))
+await b.send({ t: 'chat', text: 'Chơi vui nha' })
+await a.until((m) => m.t === 'chat' && m.lines.some((line) => line.text === 'Chơi vui nha'), 'chủ phòng nhận câu trả lời')
+await sleep(300)
+if (watcher.states.some((m) => m.t === 'chat')) fail('người xem đọc được chat')
+await watcher.send({ t: 'chat', text: 'mách nước nè' })
+await sleep(300)
+if ([...a.states, ...b.states].some((m) => m.t === 'chat' && m.lines.some((line) => line.text === 'mách nước nè'))) fail('người xem gửi được chat')
+watcher.ws.close()
+const rejoin = player(room2)
+await rejoin.send({ t: 'hello', token: limitsGuest })
+const history = await rejoin.until((m) => m.t === 'chat' && m.all, 'nối lại nhận chat cũ')
+if (history.lines.map((line) => line.text).join('|') !== 'Chào nha|Chơi vui nha') fail('chat cũ sai: ' + JSON.stringify(history))
+rejoin.ws.close()
+let chatMark = a.states.length
+await b.send({ t: 'chatOff', off: true })
+const muted = await next(a, chatMark, (m) => m.t === 'state' && m.room.game.players.b.chatOff, 'thấy bạn bè tắt chat')
+if (muted.room.game.players.w.chatOff) fail('tắt chat nhầm bên')
+await b.send({ t: 'chat', text: 'đang tắt mà vẫn gửi' })
+await b.send({ t: 'chatOff', off: false })
+await next(a, chatMark, (m) => m.t === 'state' && !m.room.game.players.b.chatOff, 'thấy bạn bè bật lại chat')
+if (a.states.some((m) => m.t === 'chat' && m.lines.some((line) => line.text === 'đang tắt mà vẫn gửi'))) fail('đang tắt chat mà vẫn gửi được')
+console.log('Chat: hai người chơi thấy nhau, người xem không thấy, nối lại thấy chat cũ, tắt chat thì bên kia biết')
+
+// Spam chat: một tab của chủ phòng gửi 500 câu liền. Máy chủ chỉ nhận vài câu đầu, nước đi của bạn bè vẫn tới ngay.
+const spammer = player(room2)
+await spammer.send({ t: 'hello', token: limitsHost })
+await spammer.until((m) => m.t === 'state', 'tab spam chat vào phòng')
+await sleep(1500) // để mức gửi chat của chủ phòng hồi lại sau mấy câu ở trên
+chatMark = b.states.length
+for (let i = 0; i < 500; i++) await spammer.send({ t: 'chat', text: 'spam ' + i })
+const moveStart = Date.now()
+await b.send({ t: 'move', uci: 'e7e5', ply: 1, lag: 0 })
+await a.until((m) => m.room?.game?.moves.length === 2, 'nước đi của bạn bè tới sau đợt spam chat')
+const moveDelay = Date.now() - moveStart
+await sleep(500)
+const spamReceived = b.states.slice(chatMark).filter((m) => m.t === 'chat').length
+if (spamReceived > 7) fail('spam chat mà bạn bè nhận tới ' + spamReceived + ' câu')
+if (moveDelay > 1500) fail('spam chat làm nước đi tới chậm ' + moveDelay + ' ms')
+console.log(`Spam 500 câu chat: bạn bè chỉ nhận ${spamReceived} câu, nước đi vẫn tới sau ${moveDelay} ms`)
+spammer.ws.close()
 
 // Gửi dồn dập 60 nước đi sai: máy chủ chỉ trả lời khoảng 20 thư đầu, phần còn lại bị bỏ.
 const replies = b.states.length

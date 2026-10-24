@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   LAG_QUOTA_GAIN,
+  chat,
+  chatOf,
+  cleanChat,
   LAG_QUOTA_MAX,
   LAG_QUOTA_START,
   checkFlag,
@@ -15,7 +18,7 @@ import {
   viewsOf,
   type RoomData,
 } from './room'
-import { ROOM_ID, fromUci, newRoomId, toUci, type ClientMessage, type ColorChoice } from './protocol'
+import { CHAT_BURST, CHAT_KEEP, CHAT_LIMIT, ROOM_ID, fromUci, newRoomId, toUci, type ClientMessage, type ColorChoice } from './protocol'
 
 const HOST = 'host-token-aaaaaaaaaaaa'
 const GUEST = 'guest-token-bbbbbbbbbbb'
@@ -114,7 +117,7 @@ describe('vào phòng và chọn màu', () => {
     const seen = view(r, 'third-token-cccccccccc', 0, BOTH)
     expect(seen.role).toBe('visitor')
     expect(seen.game?.you).toBeNull()
-    expect(seen.game?.players).toEqual({ w: { name: 'Tài', online: true }, b: { name: 'Nam', online: true } })
+    expect(seen.game?.players).toEqual({ w: { name: 'Tài', online: true, chatOff: false }, b: { name: 'Nam', online: true, chatOff: false } })
     expect(JSON.stringify(seen)).not.toContain(HOST)
   })
 })
@@ -493,5 +496,106 @@ describe('thời gian nghĩ mỗi nước', () => {
     expect(upgraded.game!.takebackAsked).toEqual([false, false])
     expect(send(upgraded, HOST, { t: 'move', uci: 'g1f3', ply: 2, lag: 0 }, 7_000)).toBe(true)
     expect(view(upgraded, HOST, 7_000, BOTH).game!.moveTimes).toEqual([null, null, 5_000])
+  })
+})
+
+describe('chat', () => {
+  const VISITOR = 'third-token-cccccccccc'
+
+  it('hai người chơi chat được, ghi người gửi và ván thứ mấy; người xem không gửi, không thấy', () => {
+    const r = started()
+    expect(chat(r, HOST, 'Chào nha', 1_000)).toEqual({ id: 1, by: 'host', text: 'Chào nha', at: 1_000, game: 1 })
+    expect(chat(r, GUEST, 'Chơi vui nha', 2_000)?.by).toBe('guest')
+    expect(chat(r, VISITOR, 'mách nước nè', 3_000)).toBeNull()
+    expect(chatOf(r, HOST)?.map((line) => line.text)).toEqual(['Chào nha', 'Chơi vui nha'])
+    expect(chatOf(r, GUEST)).toHaveLength(2)
+    expect(chatOf(r, VISITOR)).toBeNull()
+  })
+
+  it('bạn bè chưa vào phòng thì chưa chat được', () => {
+    expect(chat(room(), HOST, 'Có ai không', 0)).toBeNull()
+  })
+
+  it('câu chat được làm gọn: một dòng, bỏ ký tự vô hình, cắt ở CHAT_LIMIT ký tự, câu rỗng thì bỏ', () => {
+    expect(cleanChat('  Ghê\n\n  vậy\t ')).toBe('Ghê vậy')
+    expect(cleanChat('a\u202Eb\u200Bc\u0007')).toBe('abc')
+    expect(cleanChat('👨\u200D👩\u200D👧')).toBe('👨\u200D👩\u200D👧') // giữ ký tự nối emoji gia đình
+    expect(cleanChat('e\u0302\u0301')).toBe('ế') // gõ tách dấu thì gộp lại như chữ thường
+    expect([...cleanChat('😀'.repeat(300))]).toHaveLength(CHAT_LIMIT)
+    const r = started()
+    expect(chat(r, HOST, ' \n\u200B ', 0)).toBeNull()
+  })
+
+  it('chữ chồng dấu chỉ giữ hai dấu mỗi chữ', () => {
+    expect(cleanChat('x' + '\u0300\u0301\u0302\u0303')).toBe('x\u0300\u0301')
+  })
+
+  it(`gửi liền tối đa ${CHAT_BURST} câu, sau đó mỗi giây một câu`, () => {
+    const r = started()
+    for (let i = 0; i < CHAT_BURST; i++) expect(chat(r, HOST, 'spam ' + i, 1_000)).not.toBeNull()
+    expect(chat(r, HOST, 'quá dày', 1_000)).toBeNull()
+    expect(chat(r, GUEST, 'người kia vẫn gửi được', 1_000)).not.toBeNull()
+    expect(chat(r, HOST, 'chưa đủ một giây', 1_900)).toBeNull()
+    expect(chat(r, HOST, 'đủ một giây', 2_000)).not.toBeNull()
+    expect(chat(r, HOST, 'lại phải chờ', 2_000)).toBeNull()
+  })
+
+  it(`máy chủ giữ ${CHAT_KEEP} câu gần nhất, số thứ tự vẫn tăng tiếp`, () => {
+    const r = started()
+    for (let i = 0; i < CHAT_KEEP + 20; i++) chat(r, i % 2 ? GUEST : HOST, 'câu ' + i, i * 2_000)
+    const lines = chatOf(r, HOST)!
+    expect(lines).toHaveLength(CHAT_KEEP)
+    expect(lines[0].text).toBe('câu 20')
+    expect(lines.at(-1)!.id).toBe(CHAT_KEEP + 20)
+  })
+
+  it('chat còn nguyên qua ván sau, câu mới ghi ván thứ hai', () => {
+    const r = started()
+    chat(r, HOST, 'ván 1', 0)
+    play(r, ['f2f3', 'e7e5', 'g2g4', 'd8h4'])
+    send(r, HOST, { t: 'rematch', yes: true })
+    send(r, GUEST, { t: 'rematch', yes: true })
+    chat(r, GUEST, 'gỡ nè', 10_000)
+    expect(chatOf(r, HOST)!.map((line) => [line.text, line.game])).toEqual([
+      ['ván 1', 1],
+      ['gỡ nè', 2],
+    ])
+  })
+
+  it('tắt chat thì bên kia thấy, và người tắt không gửi được nữa cho tới khi bật lại', () => {
+    const r = started()
+    expect(send(r, GUEST, { t: 'chatOff', off: true })).toBe(true)
+    expect(send(r, GUEST, { t: 'chatOff', off: true })).toBe(false) // tắt rồi thì không đổi gì
+    expect(view(r, HOST, 0, BOTH).game!.players.b.chatOff).toBe(true)
+    expect(view(r, HOST, 0, BOTH).game!.players.w.chatOff).toBe(false)
+    expect(chat(r, GUEST, 'alo', 0)).toBeNull()
+    expect(chat(r, HOST, 'tắt chat chi vậy', 0)).not.toBeNull() // người kia vẫn gửi; máy chủ giữ cho lúc bật lại
+    send(r, GUEST, { t: 'chatOff', off: false })
+    expect(chat(r, GUEST, 'bật lại rồi', 0)).not.toBeNull()
+    expect(send(r, VISITOR, { t: 'chatOff', off: true })).toBe(false)
+  })
+
+  it('đọc thư chat: phải có chữ, không quá dài; thư tắt chat phải có đúng/sai', () => {
+    expect(parseClientMessage(JSON.stringify({ t: 'chat', text: 'GG' }))).toEqual({ t: 'chat', text: 'GG' })
+    expect(parseClientMessage(JSON.stringify({ t: 'chat', text: 42 }))).toBeNull()
+    expect(parseClientMessage(JSON.stringify({ t: 'chat', text: 'x'.repeat(5_000) }))).toBeNull()
+    expect(parseClientMessage(JSON.stringify({ t: 'chatOff', off: true }))).toEqual({ t: 'chatOff', off: true })
+    expect(parseClientMessage(JSON.stringify({ t: 'chatOff', off: 'yes' }))).toBeNull()
+  })
+
+  it('phòng lưu từ bản trước (chưa có chat) vẫn chat được', () => {
+    const r = started()
+    const old = JSON.parse(JSON.stringify(r)) as Partial<RoomData> & RoomData
+    delete (old as Partial<RoomData>).chat
+    delete (old as Partial<RoomData>).chatNext
+    for (const seat of old.seats) {
+      const s = seat as Partial<typeof seat>
+      delete s.chatOff
+      delete s.chatBudget
+      delete s.chatAt
+    }
+    const upgraded = upgradeRoom(old)
+    expect(chat(upgraded, HOST, 'chào', 0)?.id).toBe(1)
+    expect(view(upgraded, GUEST, 0, BOTH).game!.players.w.chatOff).toBe(false)
   })
 })
