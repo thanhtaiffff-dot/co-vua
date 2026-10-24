@@ -6,6 +6,7 @@ import type { Color, PieceSymbol, Square } from 'chess.js'
 import type { Config } from '@lichess-org/chessground/config'
 import type { Key } from '@lichess-org/chessground/types'
 import { Board } from '../components/Board'
+import { BoardTools } from '../components/BoardTools'
 import { MoveList, MoveStrip } from '../components/MoveList'
 import { PlayerBar, type ClockFace } from '../components/PlayerBar'
 import { PromotionPicker } from '../components/PromotionPicker'
@@ -114,6 +115,13 @@ export function OnlineGame({ game, receivedAt, connection, send, lag }: Props) {
     const isRunning = flagAt !== null && color === running
     const ms = isRunning ? Math.min(clockTimes[color], Math.max(0, flagAt - now)) : clockTimes[color]
     return { ms, running: isRunning, low: ms < lowTime(clock.control) }
+  }
+
+  // Giờ còn lại của hai bên lúc hết ván, cho bảng thống kê (ván không tính giờ thì không có).
+  function endClocks(): Record<Color, number> | null {
+    const white = clockFace('w')
+    const black = clockFace('b')
+    return white && black ? { w: white.ms, b: black.ms } : null
   }
 
   // Báo sắp hết giờ: chỉ báo đồng hồ của chính mình, một lần mỗi khi tụt xuống dưới mức đỏ.
@@ -301,7 +309,10 @@ export function OnlineGame({ game, receivedAt, connection, send, lag }: Props) {
           active={!over && turn === bottom}
           clock={clockFace(bottom)}
         />
-        <MoveStrip sans={sans} times={times} shown={review.shown} onGo={review.go} />
+        <div className="board-under">
+          <MoveStrip sans={sans} times={times} shown={review.shown} onGo={review.go} />
+          <BoardTools onFlip={() => setFlipped((f) => !f)} />
+        </div>
       </section>
 
       <aside className="side">
@@ -359,11 +370,15 @@ export function OnlineGame({ game, receivedAt, connection, send, lag }: Props) {
           <ResultCard
             result={status}
             name={who}
+            playerName={name}
+            chess={chess}
             sans={sans}
             times={times}
+            clocks={endClocks()}
             orientation={SIDE[bottom]}
-            onReview={() => {
-              review.go(0)
+            shown={review.shown}
+            onGo={(ply) => {
+              review.go(ply)
               showBoard()
             }}
           />
@@ -440,36 +455,31 @@ export function OnlineGame({ game, receivedAt, connection, send, lag }: Props) {
         )}
         {!seated && over && match && <div className="card">{match}</div>}
 
-        <div className="controls controls--online">
-          {seated && !over && (
-            <>
-              <button
-                type="button"
-                className="btn"
-                disabled={!canTakeback}
-                onClick={() => send({ t: 'takeback', yes: true })}
-                title={me && game.takebackAsked[me] && !askedOffer ? 'Mỗi lượt chỉ xin đi lại được một lần' : undefined}
-              >
-                {askedOffer ? 'Đang xin đi lại' : 'Xin đi lại'}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                disabled={early || drawOffered}
-                onClick={() => send({ t: 'draw', yes: true })}
-                title={early ? 'Xin hòa được sau khi mỗi bên đi một nước' : undefined}
-              >
-                {drawOffered ? 'Đã xin hòa' : 'Xin hòa'}
-              </button>
-              <button type="button" className={`btn${confirmResign ? ' btn--confirm' : ''}`} onClick={resign}>
-                {confirmResign ? 'Bấm lần nữa' : early ? 'Huỷ ván' : 'Đầu hàng'}
-              </button>
-            </>
-          )}
-          <button type="button" className="btn" onClick={() => setFlipped((f) => !f)}>
-            Lật bàn
-          </button>
-        </div>
+        {seated && !over && (
+          <div className="controls controls--online">
+            <button
+              type="button"
+              className="btn"
+              disabled={!canTakeback}
+              onClick={() => send({ t: 'takeback', yes: true })}
+              title={me && game.takebackAsked[me] && !askedOffer ? 'Mỗi lượt chỉ xin đi lại được một lần' : undefined}
+            >
+              {askedOffer ? 'Đang xin đi lại' : 'Xin đi lại'}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={early || drawOffered}
+              onClick={() => send({ t: 'draw', yes: true })}
+              title={early ? 'Xin hòa được sau khi mỗi bên đi một nước' : undefined}
+            >
+              {drawOffered ? 'Đã xin hòa' : 'Xin hòa'}
+            </button>
+            <button type="button" className={`btn${confirmResign ? ' btn--confirm' : ''}`} onClick={resign}>
+              {confirmResign ? 'Bấm lần nữa' : early ? 'Huỷ ván' : 'Đầu hàng'}
+            </button>
+          </div>
+        )}
 
         {seated && !over && (
           <p className="online-tip">

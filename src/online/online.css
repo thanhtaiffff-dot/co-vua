@@ -382,9 +382,10 @@
   flex: 1 1 120px;
 }
 
-/* Trong ván: bốn nút (xin đi lại, xin hòa, đầu hàng, lật bàn) xếp hai hàng; hết ván chỉ còn nút lật bàn */
-.controls--online {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+/* Trong ván: ba nút xin đi lại, xin hòa, đầu hàng (lật bàn nằm ở cột nút cạnh bàn cờ) */
+.controls--online .btn {
+  padding-inline: 4px;
+  font-size: 0.9rem;
 }
 
 .online-tip {

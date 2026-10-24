@@ -1,6 +1,7 @@
 import type { Color, PieceSymbol } from 'chess.js'
 import { formatClock } from '../game/clock'
-import { Piece } from './Piece'
+import { piecesText } from '../game/rules'
+import { CapturedPieces } from './CapturedPieces'
 
 // Đồng hồ của một bên: `running` khi đang bị trừ giờ, `low` khi sắp hết giờ.
 export type ClockFace = { ms: number; running: boolean; low: boolean }
@@ -15,18 +16,10 @@ type Props = {
   away?: boolean // chơi online: người này đang mất kết nối
 }
 
-const PIECE_NAME: Record<PieceSymbol, string> = { p: 'tốt', n: 'mã', b: 'tượng', r: 'xe', q: 'hậu', k: 'vua' }
-
 // Thanh người chơi: tên, quân đã ăn được (quân cùng loại xếp chồng lên nhau như chess.com), điểm quân hơn, đồng hồ.
 export function PlayerBar({ color, name, captured, score, active, clock, away }: Props) {
   const opponent: Color = color === 'w' ? 'b' : 'w'
-  const groups: PieceSymbol[][] = []
-  for (const type of captured) {
-    const last = groups.at(-1)
-    if (last && last[0] === type) last.push(type)
-    else groups.push([type])
-  }
-  const said = groups.map((group) => `${group.length} ${PIECE_NAME[group[0]]}`).join(', ')
+  const said = piecesText(captured)
   return (
     <div className={`player${active ? ' player--active' : ''}`}>
       <span className={`player__dot player__dot--${color}`} aria-hidden="true" />
@@ -36,13 +29,7 @@ export function PlayerBar({ color, name, captured, score, active, clock, away }:
           {away && <span className="player__away">mất kết nối</span>}
         </div>
         <div className="cg-wrap player__captured" aria-label={said ? `${name} đã ăn ${said}` : `${name} chưa ăn quân nào`}>
-          {groups.map((group, i) => (
-            <span key={i} className="player__group">
-              {group.map((type, j) => (
-                <Piece key={j} type={type} color={opponent} />
-              ))}
-            </span>
-          ))}
+          <CapturedPieces pieces={captured} color={opponent} />
           {score > 0 && <span className="player__score">+{score}</span>}
         </div>
       </div>

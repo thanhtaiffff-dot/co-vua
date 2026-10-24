@@ -1,6 +1,20 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import { analysisUrl, canCheckmate, capturedPieces, describeMove, gameStatus, isPromotion, legalDests, materialDiff, replay, timeoutStatus, winnerOf } from './rules'
+import {
+  analysisUrl,
+  canCheckmate,
+  capturedPieces,
+  describeMove,
+  gameStatus,
+  groupPieces,
+  isPromotion,
+  legalDests,
+  materialDiff,
+  piecesText,
+  replay,
+  timeoutStatus,
+  winnerOf,
+} from './rules'
 
 describe('nước đi hợp lệ', () => {
   it('thế cờ ban đầu có 20 nước, từ 10 quân', () => {
@@ -112,6 +126,12 @@ describe('quân đã bị ăn', () => {
     promoted.move('a8=Q')
     promoted.move('Rxa8')
     expect(capturedPieces(promoted)).toEqual({ w: [], b: ['q'] })
+  })
+
+  it('gom quân cùng loại để xếp chồng, đọc thành lời', () => {
+    expect(groupPieces(['p', 'p', 'n', 'r', 'r'])).toEqual([['p', 'p'], ['n'], ['r', 'r']])
+    expect(piecesText(['p', 'p', 'n', 'q'])).toBe('2 tốt, 1 mã, 1 hậu')
+    expect(piecesText([])).toBe('')
   })
 })
 

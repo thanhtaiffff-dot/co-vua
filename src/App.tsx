@@ -3,6 +3,7 @@ import type { Color, PieceSymbol, Square } from 'chess.js'
 import type { Config } from '@lichess-org/chessground/config'
 import type { Key } from '@lichess-org/chessground/types'
 import { Board } from './components/Board'
+import { BoardTools } from './components/BoardTools'
 import { MoveList, MoveStrip } from './components/MoveList'
 import { PlayerBar, type ClockFace } from './components/PlayerBar'
 import { PlayerNames } from './components/PlayerNames'
@@ -143,6 +144,19 @@ export default function App() {
     return { ms, running: running && !over, low: ms < lowTime(clock.control) }
   }
 
+  // Giờ còn lại của hai bên lúc hết ván, cho bảng thống kê (ván không tính giờ thì không có).
+  function endClocks(): Record<Color, number> | null {
+    const white = clockFace('w')
+    const black = clockFace('b')
+    return white && black ? { w: white.ms, b: black.ms } : null
+  }
+
+  // Bàn cờ hiện thế cờ sau nước `ply` (bấm ở thẻ kết quả); điện thoại thì cuộn lên cho thấy bàn cờ.
+  function goTo(ply: number) {
+    review.go(ply)
+    showBoard()
+  }
+
   // Đi một nước: ghi nước đi, thời gian nghĩ và giờ của bên vừa đi. Lỡ hết giờ rồi thì không nhận nước đó nữa.
   function play(move: PlayedMove) {
     const time = Date.now()
@@ -212,7 +226,14 @@ export default function App() {
             active={!over && turn === bottom}
             clock={clockFace(bottom)}
           />
-          <MoveStrip sans={sans} times={times} shown={review.shown} onGo={review.go} />
+          <div className="board-under">
+            <MoveStrip sans={sans} times={times} shown={review.shown} onGo={review.go} />
+            <BoardTools
+              onFlip={() => setOrientation((o) => (o === 'white' ? 'black' : 'white'))}
+              flipDisabled={autoFlip}
+              flipTitle="Đang bật tự xoay bàn theo lượt"
+            />
+          </div>
         </section>
 
         <aside className="side">
@@ -220,14 +241,13 @@ export default function App() {
             <ResultCard
               result={status}
               name={name}
+              chess={chess}
               sans={sans}
               times={times}
+              clocks={endClocks()}
               orientation={boardSide}
-              onReview={() => {
-                review.go(0)
-                showBoard()
-              }}
-              hint={'Bấm "Ván mới" để chơi tiếp.'}
+              shown={review.shown}
+              onGo={goTo}
             />
           ) : (
             <div className={`status${status.kind === 'playing' && status.check ? ' status--check' : ''}`} role="status">
@@ -254,9 +274,6 @@ export default function App() {
           <div className="controls">
             <button type="button" className="btn" onClick={undo} disabled={moves.length === 0}>
               Đi lại
-            </button>
-            <button type="button" className="btn" onClick={() => setOrientation((o) => (o === 'white' ? 'black' : 'white'))} disabled={autoFlip}>
-              Lật bàn
             </button>
             <button type="button" className={`btn btn--primary${confirmNew ? ' btn--confirm' : ''}`} onClick={newGame}>
               {confirmNew ? 'Bấm lần nữa' : 'Ván mới'}

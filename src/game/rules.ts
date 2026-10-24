@@ -19,6 +19,12 @@ export type MaterialSide = { pieces: PieceSymbol[]; score: number }
 export type MoveFacts = { capture: boolean; castle: boolean; promotion: boolean; check: boolean; mate: boolean }
 
 const VALUES: Record<PieceSymbol, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 }
+
+// Điểm của một quân, để so ai hơn quân: Tốt 1, Mã 3, Tượng 3, Xe 5, Hậu 9.
+export function pieceValue(type: PieceSymbol): number {
+  return VALUES[type]
+}
+
 const MATERIAL_ORDER: PieceSymbol[] = ['q', 'r', 'b', 'n', 'p']
 // Quân đã ăn xếp từ nhẹ tới nặng, như chess.com.
 const CAPTURE_ORDER: PieceSymbol[] = ['p', 'n', 'b', 'r', 'q']
@@ -129,6 +135,26 @@ export function capturedPieces(chess: Chess): Record<Color, PieceSymbol[]> {
   for (const move of chess.history({ verbose: true })) if (move.captured) captured[move.color].push(move.captured)
   for (const list of Object.values(captured)) list.sort((a, b) => CAPTURE_ORDER.indexOf(a) - CAPTURE_ORDER.indexOf(b))
   return captured
+}
+
+// Gom các quân cùng loại đứng liền nhau (quân đã xếp từ nhẹ tới nặng): [p, p, n] thành [[p, p], [n]].
+export function groupPieces(pieces: PieceSymbol[]): PieceSymbol[][] {
+  const groups: PieceSymbol[][] = []
+  for (const type of pieces) {
+    const last = groups.at(-1)
+    if (last && last[0] === type) last.push(type)
+    else groups.push([type])
+  }
+  return groups
+}
+
+const PIECE_NAME: Record<PieceSymbol, string> = { p: 'tốt', n: 'mã', b: 'tượng', r: 'xe', q: 'hậu', k: 'vua' }
+
+// Các quân viết thành lời, vd "2 tốt, 1 mã" (cho trình đọc màn hình).
+export function piecesText(pieces: PieceSymbol[]): string {
+  return groupPieces(pieces)
+    .map((group) => `${group.length} ${PIECE_NAME[group[0]]}`)
+    .join(', ')
 }
 
 // Bên thắng của một ván đã xong; null là hòa hoặc huỷ.
