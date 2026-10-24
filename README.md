@@ -15,14 +15,15 @@ Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước 
 - Xin hòa, đầu hàng (bấm hai lần). Chưa ai đi quá một nước thì nút thành **Huỷ ván**, không tính thắng thua.
 - **Đấu ván nữa**: hai bên cùng bấm thì vào ván mới, tự đổi màu cho nhau, tỉ số cộng dồn. Bên kia có nút **Từ chối**; bị từ chối thì không mời lại được nữa (khỏi làm phiền), trừ khi bên kia đổi ý mời lại.
 - **Chat** giữa hai người chơi: máy tính thì khung chat nằm bên trái bàn cờ, điện thoại thì có nút Chat ở góc dưới (chấm đỏ đếm tin chưa đọc), tin mới của đối thủ hiện thành bong bóng trên thanh tên họ vài giây. Có hàng câu nhanh đổi theo lúc ván (đầu ván, giữa ván, hết ván) và bảng emoji. Nút **Tắt chat** (trình duyệt nhớ cho các ván sau; đối thủ thấy là mình đã tắt). Người xem không đọc được chat. Máy chủ giữ 100 câu gần nhất suốt phòng (tải lại trang, đấu ván nữa vẫn còn); mỗi câu tối đa 200 ký tự, mỗi người gửi liền 5 câu rồi mỗi giây một câu; link trong tin chỉ là chữ, không bấm được.
-- Rớt mạng, khoá màn hình, tải lại trang: tự nối lại, vào đúng ghế cũ. Đối thủ mất kết nối thì hiện chữ "mất kết nối" cạnh tên.
+- Rớt mạng, khoá màn hình, tải lại trang: tự nối lại, vào đúng ghế cũ. Góc ảnh đại diện của đối thủ có chấm xanh khi bạn bè còn trong phòng; mất kết nối thì chấm thành xám và hiện chữ "mất kết nối" cạnh tên.
 - Người thứ ba mở link khi phòng đã đủ hai người thì chỉ được xem. Mỗi phòng tối đa 8 người xem; người chơi thì lúc nào cũng vào được (mỗi người mở tối đa 4 tab hoặc máy cùng lúc, mở thêm thì tab cũ nhất tạm ngắt).
 - **Chống phá ván**: máy chủ bỏ qua thư rác, thư quá dài, thư gửi quá dày (quá 20 thư liền một lúc rồi 5 thư mỗi giây), nên người có link không làm đơ được ván hay làm đồng hồ bị trừ oan.
 - Tên tab báo "Tới lượt bạn" khi chuyển sang app khác.
 
 ### Trong ván (cả chơi một máy lẫn online)
 
-- Thanh người chơi hiện **tên đã nhập** (chơi một máy: ô "Tên người chơi" trước ván; online: tên lúc tạo phòng, vào phòng), **quân đã ăn được** của đối thủ (quân cùng loại xếp chồng) và số điểm quân hơn (+3…).
+- Thanh người chơi như chess.com: **ảnh đại diện** (chữ cái đầu của tên trên nền màu riêng của tên đó, hai người không bao giờ trùng màu; chưa nhập tên thì là hình con tốt), **tên đã nhập** (chơi một máy: ô "Tên người chơi" trước ván; online: tên lúc tạo phòng, vào phòng), **quân đã ăn được** của đối thủ (quân cùng loại xếp chồng) và số điểm quân hơn (+3…). Thanh không ghi "Trắng", "Đen": chưa nhập tên thì chơi một máy không hiện chữ, online thì mình là "Bạn", người kia là "Đối thủ".
+- **Đồng hồ trắng/đen** như đồng hồ cờ thật: bên Trắng là hộp sáng, bên Đen là hộp tối. Tới lượt ai thì đồng hồ người đó sáng hẳn lên, đang chạy thì có hình đồng hồ nhỏ kim nhích mỗi giây; đồng hồ đang chờ thì chữ nhạt đi. Sắp hết giờ thì chữ đỏ, đang chạy mà sắp hết giờ thì cả hộp đỏ.
 - Cột nước đi hiện **thời gian nghĩ** từng nước. Online thì máy chủ đo, đã trừ thời gian đường truyền.
 - **Xem lại**: bấm một nước trong cột nước đi (điện thoại: dải nước đi ngay dưới bàn cờ) để xem thế cờ lúc đó; nút mũi tên, phím ← → (Home, End) để lùi, tiến. Bàn cờ có viền màu khi đang xem thế cờ cũ; có nước mới thì tự về ván đang chơi.
 - **Bàn cờ to vừa màn hình**. Sát mép phải bàn cờ là thanh nút như chess.com: **Lật bàn**, **Phóng to**, **Thu nhỏ** (mỗi lần một phần mười, nhỏ nhất còn một nửa, máy nhớ cỡ đã chọn), **Toàn màn hình** (ẩn thanh địa chỉ, thanh tab của trình duyệt). Điện thoại: bàn cờ đã rộng hết màn hình nên chỉ có Lật bàn và Toàn màn hình, nằm cạnh dải nước đi; iPhone không cho trang web vào toàn màn hình nên không có nút đó.
@@ -68,7 +69,7 @@ Web chơi cờ vua với bạn bè. Dự án làm từng bước nhỏ: bước 
 
   Bấm nút nốt nhạc góc trên để mở bảng chọn: chạm một bộ là nghe thử một đoạn ngắn (đi quân, ăn quân, chiếu, thắng) và dùng luôn bộ đó; hàng nút cuối bảng cho nghe riêng từng tiếng. Dòng đầu bảng là **Theo chủ đề** (mặc định): tiếng tự đổi theo bộ quân đang dùng (quân Thép thì tiếng Thép, quân Cổ điển thì tiếng Gỗ). Chọn một bộ tiếng cụ thể là tiếng giữ nguyên bộ đó, đổi quân không đụng tới. Nút loa bên cạnh để tắt/bật. Máy nào nhớ lựa chọn của máy đó. iPhone gạt sang chế độ im lặng thì web cũng im.
 - Danh sách nước đi kiểu ký hiệu cờ (e4, Nf3, O-O…), quân đã ăn và chênh lệch điểm quân.
-- Đặt tên hai người chơi trước ván (nút giữa để đổi màu cho hai người); để trống thì gọi theo màu quân.
+- Đặt tên hai người chơi trước ván (nút giữa để đổi màu cho hai người); để trống thì thanh người chơi chỉ có hình con tốt, còn lời báo ("Tới lượt Trắng", "Đen thắng") gọi theo màu quân.
 - Đi lại (đồng hồ, thời gian nghĩ cũng lùi theo), ván mới (bấm hai lần để chắc chắn), tự xoay bàn theo lượt (bật thì nút Lật bàn tạm khoá).
 - Tải lại trang vẫn giữ ván đang chơi.
 - Giao diện sáng/tối theo máy, dùng tốt trên điện thoại.
@@ -100,7 +101,8 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 | `src/game/stats.ts` | Tính số liệu cho "Thống kê ván" từ các nước đã đi và thời gian nghĩ |
 | `src/useReview.ts` | Xem lại thế cờ cũ: bấm nước trong cột nước đi, nút mũi tên, phím ← → |
 | `src/names.ts` | Tên hai người chơi chung một máy |
-| `src/**/*.test.ts` | Bài kiểm tra tự động cho luật cờ, đồng hồ, thống kê ván, cỡ bàn cờ, âm thanh, chủ đề và phòng chơi online |
+| `src/avatar.ts` | Ảnh đại diện: lấy chữ cái đầu của tên, chọn màu theo tên, hai người trùng màu thì đổi màu bên Đen |
+| `src/**/*.test.ts` | Bài kiểm tra tự động cho luật cờ, đồng hồ, thống kê ván, cỡ bàn cờ, âm thanh, chủ đề, ảnh đại diện và phòng chơi online |
 | `src/online/room.ts` | Luật của phòng chơi online: ai ngồi ghế nào, bốc màu, nhận nước đi, đồng hồ trên máy chủ, xin đi lại, hòa, đầu hàng, tái đấu |
 | `src/online/premove.ts` | Đi trước nhiều nước: bàn cờ hiện quân ở chỗ mới, đổi nước đi trước thành nước đi thật |
 | `src/online/protocol.ts` | Các loại thư qua lại giữa máy người chơi và máy chủ |
@@ -125,7 +127,7 @@ Cần cài [Node.js](https://nodejs.org) bản LTS, từ 24 trở lên (gói bà
 | `src/themes/` | Ảnh quân (mỗi bộ, mỗi kiểu một tấm ảnh gộp) và ảnh bàn cờ (WebP) |
 | `tools/themes/` | Xưởng dựng và chụp ảnh quân 3D, quân 2D, bàn cờ (three.js), có hướng dẫn riêng trong đó |
 | `src/components/Board.tsx` | Bàn cờ (bọc thư viện chessground) |
-| `src/components/` | Các mảnh giao diện khác: thanh người chơi kèm đồng hồ và quân đã ăn, chọn thời gian, tên người chơi, chọn quân phong cấp, cột và dải nước đi, thanh nút chỉnh bàn cờ, thẻ kết quả và thống kê ván, bảng chọn chủ đề, bảng chọn bộ tiếng |
+| `src/components/` | Các mảnh giao diện khác: thanh người chơi kèm ảnh đại diện, đồng hồ và quân đã ăn, chọn thời gian, tên người chơi, chọn quân phong cấp, cột và dải nước đi, thanh nút chỉnh bàn cờ, thẻ kết quả và thống kê ván, bảng chọn chủ đề, bảng chọn bộ tiếng |
 | `src/boardView.ts` | Cỡ bàn cờ (Phóng to, Thu nhỏ) và chế độ toàn màn hình |
 | `src/Root.tsx`, `src/router.ts` | Chọn trang theo địa chỉ: `/` chơi một máy, `/online` tạo phòng, `/phong/<mã>` phòng chơi |
 | `src/App.tsx` | Trang chơi chung một máy, giữ trạng thái ván cờ |
