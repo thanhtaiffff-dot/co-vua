@@ -50,7 +50,17 @@ export type ClientMessage =
   | { t: 'draw'; yes: boolean } // xin hòa, đồng ý hòa; `yes: false` là từ chối hoặc rút lời xin
   | { t: 'rematch'; yes: boolean } // xin tái đấu, đồng ý tái đấu; `yes: false` là thôi
 
-export type ServerMessage = { t: 'state'; room: RoomView } | { t: 'error'; code: 'not-found' }
+// Máy chủ báo lỗi rồi ngắt đường dây, máy người chơi thôi không nối lại:
+// - not-found: không có phòng này;
+// - full: phòng đã đủ MAX_VISITORS người xem;
+// - replaced: người này mở phòng ở quá nhiều tab hoặc máy, tab cũ nhất bị ngắt để nhường chỗ cho tab mới.
+export type ErrorCode = 'not-found' | 'full' | 'replaced'
+
+export type ServerMessage = { t: 'state'; room: RoomView } | { t: 'error'; code: ErrorCode }
+
+// Mỗi phòng cho tối đa bấy nhiêu người xem cùng lúc (không tính hai người chơi), để kẻ có link không mở
+// hàng trăm đường dây làm đơ ván.
+export const MAX_VISITORS = 8
 
 // Mỗi phòng có mã 8 ký tự, bỏ các chữ dễ nhầm (l, 1, o, 0, i).
 export const ROOM_ID = /^[a-hjkmnp-z2-9]{8}$/

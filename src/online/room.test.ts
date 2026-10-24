@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_LAG_CREDIT, checkFlag, cleanName, createRoom, flagDue, handle, parseCreateRequest, view, type RoomData } from './room'
+import {
+  LAG_QUOTA_GAIN,
+  LAG_QUOTA_MAX,
+  LAG_QUOTA_START,
+  checkFlag,
+  cleanName,
+  createRoom,
+  flagDue,
+  handle,
+  parseClientMessage,
+  parseCreateRequest,
+  upgradeRoom,
+  view,
+  viewsOf,
+  type RoomData,
+} from './room'
 import { ROOM_ID, fromUci, newRoomId, toUci, type ClientMessage, type ColorChoice } from './protocol'
 
 const HOST = 'host-token-aaaaaaaaaaaa'
@@ -40,6 +55,13 @@ describe('tạo phòng', () => {
     expect(parseCreateRequest({ ...ok, color: 'red' })).toBeNull()
     expect(parseCreateRequest({ ...ok, token: 'ngắn' })).toBeNull()
     expect(parseCreateRequest('rác')).toBeNull()
+  })
+
+  it('thiếu hoặc sai kiểu ô mức giờ thì từ chối, không làm máy chủ báo lỗi', () => {
+    const { control: _, ...missing } = { token: HOST, name: 'Tài', control: null, color: 'w' }
+    expect(parseCreateRequest(missing)).toBeNull()
+    expect(parseCreateRequest({ ...missing, control: '5+0' })).toBeNull()
+    expect(parseCreateRequest({ ...missing, control: { minutes: '5', increment: 0 } })).toBeNull()
   })
 
   it('tên được làm gọn, tối đa 20 ký tự, không cắt đôi chữ có dấu', () => {
@@ -137,11 +159,63 @@ describe('đồng hồ trên máy chủ', () => {
     expect(clock.running).toBe('w')
   })
 
-  it('thời gian đường truyền được trả lại có giới hạn', () => {
+  it('thời gian đường truyền được trả lại có giới hạn: không quá quỹ bù giờ', () => {
     const r = started()
     play(r, ['e2e4'], [0])
     send(r, GUEST, { t: 'move', uci: 'e7e5', ply: 1, lag: 60_000 }, 10_000)
-    expect(view(r, HOST, 10_000, BOTH).game!.clock!.times.b).toBe(180_000 - 10_000 + MAX_LAG_CREDIT + 2_000)
+    expect(view(r, HOST, 10_000, BOTH).game!.clock!.times.b).toBe(180_000 - 10_000 + LAG_QUOTA_START + 2_000)
+    expect(r.game!.lagQuota).toEqual([LAG_QUOTA_START, LAG_QUOTA_GAIN]) // quỹ của Đen dùng hết, nạp lại một nước
+  })
+
+  // Ván 1 phút, Trắng (chủ phòng) và Đen mỗi bên nghĩ đúng 1 giây mỗi nước: nước thứ `i` đi lúc `i` giây.
+  // Đen khai mạng chậm `lag` mili giây ở mọi nước. Trả về thời gian còn lại của hai bên sau 8 nước mỗi bên.
+  function eightMovesEach(lag: (i: number) => number) {
+    const r = started('w', { minutes: 1, increment: 0 })
+    const moves = ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1c4', 'f8c5', 'd2d3', 'd7d6', 'b1c3', 'g8f6', 'c1g5', 'c8g4', 'h2h3', 'h7h6', 'a2a3', 'a7a6']
+    for (const [i, uci] of moves.entries()) {
+      const white = i % 2 === 0
+      expect(send(r, white ? HOST : GUEST, { t: 'move', uci, ply: i, lag: white ? 0 : lag(i) }, i * 1000)).toBe(true)
+    }
+    return { times: view(r, HOST, (moves.length - 1) * 1000, BOTH).game!.clock!.times, room: r }
+  }
+
+  it('khai gian mạng chậm 1 giây mỗi nước thì chỉ lời được phần quỹ, không đứng yên đồng hồ', () => {
+    const { times } = eightMovesEach(() => 1000)
+    expect(times.w).toBe(60_000 - 7 * 1000) // nước đầu của Trắng không tính giờ
+    // Đen nghĩ 8 giây, được bù quỹ đầu rồi mỗi nước sau một phần nạp thêm (bản cũ bù đủ 8 giây, đồng hồ Đen đứng yên).
+    expect(times.b).toBe(60_000 - 8 * 1000 + LAG_QUOTA_START + 7 * LAG_QUOTA_GAIN)
+  })
+
+  it('mạng chậm thật (dưới mức nạp mỗi nước) thì nước nào cũng được bù đủ', () => {
+    const { times, room: r } = eightMovesEach(() => 200)
+    expect(times.b).toBe(60_000 - 8 * (1000 - 200))
+    expect(r.game!.lagQuota[1]).toBe(Math.min(LAG_QUOTA_MAX, LAG_QUOTA_START + 8 * (LAG_QUOTA_GAIN - 200)))
+  })
+
+  it('mạng giật một lần (2 giây) sau nhiều nước bình thường thì quỹ vẫn đủ bù', () => {
+    const { times } = eightMovesEach((i) => (i === 15 ? 2000 : 0))
+    // Tới nước cuối, quỹ của Đen đã đầy (LAG_QUOTA_MAX = 2,1 giây) nên được bù đủ 2 giây ở nước đó. Nghĩ thật 1 giây,
+    // khai 2 giây thì phần bù không quá thời gian đã trôi: đồng hồ Đen không bị cộng ngược.
+    expect(LAG_QUOTA_MAX).toBeGreaterThanOrEqual(2000)
+    expect(times.b).toBe(60_000 - 7 * 1000)
+  })
+
+  it('chờ thêm trước khi xử hết giờ cũng chỉ trong phạm vi quỹ', () => {
+    const r = started('w', { minutes: 1, increment: 0 })
+    play(r, ['e2e4'], [0])
+    send(r, GUEST, { t: 'move', uci: 'e7e5', ply: 1, lag: 60_000 }, 1_000) // Đen dùng hết quỹ đầu
+    send(r, HOST, { t: 'move', uci: 'g1f3', ply: 2, lag: 0 }, 2_000)
+    // Tới lượt Đen từ 2 giây. Đen còn 60 - 1 + 0,9 = 59,9 giây; khai mạng chậm 60 giây nhưng quỹ chỉ còn 0,3 giây.
+    expect(flagDue(r)).toBe(2_000 + 59_900 + LAG_QUOTA_GAIN)
+  })
+
+  it('ván đang chơi dở từ bản trước (chưa có quỹ) thì được cấp quỹ đầu', () => {
+    const r = started()
+    play(r, ['e2e4'], [0])
+    const old = JSON.parse(JSON.stringify(r)) as RoomData
+    delete (old.game as Partial<NonNullable<RoomData['game']>>).lagQuota
+    expect(upgradeRoom(old).game!.lagQuota).toEqual([LAG_QUOTA_START, LAG_QUOTA_START])
+    expect(send(old, GUEST, { t: 'move', uci: 'e7e5', ply: 1, lag: 100 }, 5_000)).toBe(true)
   })
 
   it('hết giờ: máy chủ tự xử thua, chờ thêm thời gian đường truyền của người đó', () => {
@@ -180,6 +254,42 @@ describe('đồng hồ trên máy chủ', () => {
     play(r, ['e2e4', 'e7e5'], [0, 99_999_999])
     expect(view(r, HOST, 0, BOTH).game!.clock).toBeNull()
     expect(flagDue(r)).toBeNull()
+  })
+})
+
+describe('thư gửi lên máy chủ', () => {
+  it('đọc đúng các loại thư hợp lệ', () => {
+    expect(parseClientMessage(JSON.stringify({ t: 'hello', token: HOST }))).toEqual({ t: 'hello', token: HOST })
+    expect(parseClientMessage('{"t":"join","name":"Nam"}')).toEqual({ t: 'join', name: 'Nam' })
+    expect(parseClientMessage('{"t":"move","uci":"e7e8q","ply":3,"lag":120}')).toEqual({ t: 'move', uci: 'e7e8q', ply: 3, lag: 120 })
+    expect(parseClientMessage('{"t":"move","uci":"e2e4","ply":0}')).toEqual({ t: 'move', uci: 'e2e4', ply: 0, lag: 0 })
+    expect(parseClientMessage('{"t":"resign"}')).toEqual({ t: 'resign' })
+    expect(parseClientMessage('{"t":"draw","yes":false}')).toEqual({ t: 'draw', yes: false })
+    expect(parseClientMessage('{"t":"rematch","yes":true}')).toEqual({ t: 'rematch', yes: true })
+  })
+
+  it('thư rác thì bỏ qua, không làm máy chủ báo lỗi', () => {
+    for (const junk of ['null', '42', '"hello"', '[]', '{}', 'không phải JSON', '{"t":"fly"}', '{"t":"draw","yes":"có"}']) {
+      expect(parseClientMessage(junk)).toBeNull()
+    }
+    expect(parseClientMessage(JSON.stringify({ t: 'hello', token: 'A'.repeat(50_000) }))).toBeNull()
+    expect(parseClientMessage('{"t":"hello"}')).toBeNull()
+    expect(parseClientMessage('{"t":"move","uci":"e2e9","ply":0,"lag":0}')).toBeNull()
+    expect(parseClientMessage('{"t":"move","uci":"e2e4","ply":0.5,"lag":0}')).toBeNull()
+    expect(parseClientMessage(JSON.stringify({ t: 'join', name: 'x'.repeat(1000) }))).toBeNull()
+  })
+})
+
+describe('báo tình hình cho cả phòng', () => {
+  it('soạn phần chung một lần, mỗi vai chỉ khác "mình là ai"', () => {
+    const r = started('b')
+    play(r, ['e2e4', 'e7e5'], [0, 1_000])
+    const views = viewsOf(r, 2_000, BOTH)
+    expect(views(0)).toEqual(view(r, HOST, 2_000, BOTH))
+    expect(views(1)).toEqual(view(r, GUEST, 2_000, BOTH))
+    expect(views(null)).toEqual(view(r, 'third-token-cccccccccc', 2_000, BOTH))
+    expect([views(0).role, views(1).role, views(null).role]).toEqual(['host', 'guest', 'visitor'])
+    expect([views(0).game?.you, views(1).game?.you, views(null).game?.you]).toEqual(['b', 'w', null])
   })
 })
 
