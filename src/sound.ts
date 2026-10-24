@@ -198,3 +198,25 @@ export function moveSounds(facts: MoveFacts): Sample {
 export function playMove(facts: MoveFacts): void {
   for (const [name, delay] of moveSounds(facts)) playSound(name, delay)
 }
+
+// Tiếng "tách" nhỏ khi có câu chat mới: hai nốt ngắn tự tạo bằng Web Audio, không theo bộ tiếng quân cờ, để nghe là
+// biết có tin nhắn chứ không nhầm với tiếng đối thủ đi quân. Tắt tiếng thì thôi.
+export function playChatSound(): void {
+  if (!enabled || !ctx || !output) return
+  if (ctx.state !== 'running' && performance.now() - lastTouch > 1000) return
+  const now = ctx.currentTime
+  for (const [frequency, at] of [
+    [988, 0],
+    [1319, 0.07],
+  ]) {
+    const tone = ctx.createOscillator()
+    const volume = ctx.createGain()
+    tone.frequency.value = frequency
+    volume.gain.setValueAtTime(0.0001, now + at)
+    volume.gain.exponentialRampToValueAtTime(0.16, now + at + 0.008)
+    volume.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.09)
+    tone.connect(volume).connect(output)
+    tone.start(now + at)
+    tone.stop(now + at + 0.1)
+  }
+}

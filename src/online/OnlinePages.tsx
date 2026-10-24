@@ -339,7 +339,7 @@ function Missing() {
 }
 
 function Room({ backend, id }: { backend: Backend; id: string }) {
-  const { room, receivedAt, status, error, send, lag } = useRoom(backend, id)
+  const { room, receivedAt, status, error, chat, send, lag } = useRoom(backend, id)
 
   // Ván bắt đầu (bạn bè vừa vào phòng, hay vừa đồng ý tái đấu) thì kêu tiếng "ván mới". Mở trang giữa ván thì thôi.
   const number = room ? (room.game?.number ?? 0) : null
@@ -356,7 +356,8 @@ function Room({ backend, id }: { backend: Backend; id: string }) {
   if (error === 'replaced')
     return <Notice title="Phòng đang mở ở nơi khác" text="Bạn mở phòng này ở quá nhiều tab hoặc máy, nên tab này đã tạm ngắt. Bấm Thử lại để chơi tiếp ở đây." action="retry" />
   if (!room) return <Notice title="Đang vào phòng…" text="Đang nối tới máy chủ." action={null} />
-  if (room.game) return <OnlineGame game={room.game} receivedAt={receivedAt} connection={status} send={send} lag={lag} />
+  if (room.game)
+    return <OnlineGame game={room.game} role={room.role} chat={chat} receivedAt={receivedAt} connection={status} send={send} lag={lag} />
   if (room.role === 'host') return <Waiting room={room} backend={backend} />
   return <Invite room={room} ready={status === 'open'} send={(name) => send({ t: 'join', name })} />
 }
