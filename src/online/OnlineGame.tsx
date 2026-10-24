@@ -327,9 +327,8 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
         onClose={onClose}
       />
     )
-  // Bong bóng thoại hiện cạnh thanh tên đối thủ, chỉa ra phía ngoài bàn cờ.
-  const bubble = (color: Color, side: 'top' | 'bottom') =>
-    alerts.bubble && color === opponent && <ChatBubble key={alerts.bubble.id} text={alerts.bubble.text} side={side} />
+  // Bong bóng thoại hiện trên thanh tên đối thủ.
+  const bubble = (color: Color) => alerts.bubble && color === opponent && <ChatBubble key={alerts.bubble.id} text={alerts.bubble.text} />
 
   const match = showMatch && (
     <p className="match">
@@ -353,7 +352,7 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
             active={!over && turn === top}
             clock={clockFace(top)}
           />
-          {bubble(top, 'top')}
+          {bubble(top)}
         </div>
         <div className={`board-frame${review.reviewing ? ' board-frame--review' : ''}`}>
           <Board config={config} onMove={handleMove} onPremove={handlePremove} onPremoveCancel={premoves.length > 0 ? cancelPremoves : undefined} />
@@ -369,7 +368,7 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
             active={!over && turn === bottom}
             clock={clockFace(bottom)}
           />
-          {bubble(bottom, 'bottom')}
+          {bubble(bottom)}
         </div>
         <div className="board-under">
           <MoveStrip sans={sans} times={times} shown={review.shown} onGo={review.go} />

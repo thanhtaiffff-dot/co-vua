@@ -205,11 +205,11 @@ export function ChatButton({ unread, off, onClick }: { unread: number; off: bool
   )
 }
 
-// Bong bóng thoại cạnh tên đối thủ. `side`: thanh tên nằm trên bàn cờ thì bong bóng chỉa lên trên, nằm dưới thì chỉa
-// xuống, để không che bàn cờ.
-export function ChatBubble({ text, side }: { text: string; side: 'top' | 'bottom' }) {
+// Bong bóng thoại đè lên thanh tên đối thủ vài giây (chừa đồng hồ), như lời người đó vừa nói. Nằm ngay trên thanh tên
+// nên không che bàn cờ, và cuộn trang tới đâu thấy thanh tên là thấy bong bóng.
+export function ChatBubble({ text }: { text: string }) {
   return (
-    <div className={`chat-bubble chat-bubble--${side}`} role="status">
+    <div className="chat-bubble" role="status">
       <span className="chat-bubble__text">{text}</span>
     </div>
   )
