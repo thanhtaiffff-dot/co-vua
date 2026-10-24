@@ -8,8 +8,8 @@
 // Vì vậy có mấy giới hạn: người xem tối đa MAX_VISITORS, mỗi người chơi tối đa MAX_TABS tab, mỗi đường dây chỉ chào
 // một lần và gửi thư có mức, thư quá dài bị bỏ, và chỉ báo cho cả phòng khi có gì thay đổi thật.
 import { DurableObject } from 'cloudflare:workers'
-import { MAX_VISITORS, type CreateRequest, type ErrorCode, type ServerMessage } from '../src/online/protocol'
-import { checkFlag, createRoom, flagDue, handle, parseClientMessage, seatOf, upgradeRoom, viewsOf, type RoomData, type Seat } from '../src/online/room'
+import { MAX_VISITORS, type ChatLine, type CreateRequest, type ErrorCode, type ServerMessage } from '../src/online/protocol'
+import { chat, chatOf, checkFlag, createRoom, flagDue, handle, parseClientMessage, seatOf, upgradeRoom, viewsOf, type RoomData, type Seat } from '../src/online/room'
 
 export type Env = { ROOMS: DurableObjectNamespace<ChessRoom> }
 
@@ -89,6 +89,15 @@ export class ChessRoom extends DurableObject<Env> {
       return
     }
     if (token === null) return
+    if (message.t === 'chat') {
+      // Câu chat chỉ báo cho hai người chơi, không gửi lại cả tình hình phòng. Câu không nhận (gửi quá dày...) thì bỏ.
+      const line = chat(this.room, token, message.text, now)
+      if (line) {
+        await this.save()
+        this.sendChat(line)
+      }
+      return
+    }
     if (handle(this.room, token, message, now, Math.random)) {
       await this.save()
       this.broadcast()
@@ -157,6 +166,9 @@ export class ChessRoom extends DurableObject<Env> {
     } else {
       this.send(ws, now)
     }
+    // Người chơi vừa nối (hay nối lại) thì nhận cả chat của phòng.
+    const history = chatOf(this.room, token)
+    if (history) trySend(ws, JSON.stringify({ t: 'chat', lines: history, all: true } satisfies ServerMessage))
   }
 
   // Đường dây `ws` đóng: chỉ báo cho cả phòng khi đó là đường dây cuối của một người chơi (chấm xanh tắt).
@@ -247,6 +259,13 @@ export class ChessRoom extends DurableObject<Env> {
       }
       trySend(ws, letter)
     }
+  }
+
+  // Báo câu chat cho mọi đường dây của hai người chơi (người xem không nhận).
+  private sendChat(line: ChatLine): void {
+    if (!this.room) return
+    const letter = JSON.stringify({ t: 'chat', lines: [line], all: false } satisfies ServerMessage)
+    for (const ws of this.sockets()) if (seatOf(this.room, attachment(ws).token) !== null) trySend(ws, letter)
   }
 }
 

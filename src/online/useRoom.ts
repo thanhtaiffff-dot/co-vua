@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Backend } from './backend'
 import type { Connection, ConnectionStatus } from './connection'
 import { myToken } from './identity'
-import type { ClientMessage, ErrorCode, RoomView } from './protocol'
+import { CHAT_KEEP, type ChatLine, type ClientMessage, type ErrorCode, type RoomView } from './protocol'
 
 export type RoomState = {
   room: RoomView | null // tình hình phòng máy chủ báo gần nhất
   receivedAt: number // lúc nhận được tình hình đó, theo giờ máy này (để đồng hồ chạy tiếp cho đúng)
   status: ConnectionStatus
   error: ErrorCode | null // máy chủ báo lỗi (không có phòng, phòng đủ người xem...) và ngắt đường dây
+  chat: ChatLine[] // chat của phòng (người xem không nhận)
   send: (message: ClientMessage) => void
   lag: () => number
 }
@@ -18,12 +19,14 @@ export function useRoom(backend: Backend, id: string): RoomState {
   const [latest, setLatest] = useState<{ room: RoomView | null; receivedAt: number }>({ room: null, receivedAt: 0 })
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [error, setError] = useState<ErrorCode | null>(null)
+  const [chat, setChat] = useState<ChatLine[]>([])
   const connection = useRef<Connection | null>(null)
 
   useEffect(() => {
     const opened = backend.connect(id, myToken(), {
       message(message) {
         if (message.t === 'error') setError(message.code)
+        else if (message.t === 'chat') setChat((old) => (message.all ? message.lines : mergeChat(old, message.lines)))
         else setLatest({ room: message.room, receivedAt: Date.now() })
       },
       status: setStatus,
@@ -37,5 +40,12 @@ export function useRoom(backend: Backend, id: string): RoomState {
 
   const send = useCallback((message: ClientMessage) => connection.current?.send(message), [])
   const lag = useCallback(() => connection.current?.lag() ?? 0, [])
-  return { ...latest, status, error, send, lag }
+  return { ...latest, status, error, chat, send, lag }
+}
+
+// Thêm câu chat mới vào cuối (bỏ câu đã có, phòng khi nối lại mạng nhận trùng), giữ CHAT_KEEP câu gần nhất như máy chủ.
+function mergeChat(old: ChatLine[], lines: ChatLine[]): ChatLine[] {
+  const last = old.at(-1)?.id ?? 0
+  const added = lines.filter((line) => line.id > last)
+  return added.length ? [...old, ...added].slice(-CHAT_KEEP) : old
 }

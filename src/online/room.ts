@@ -6,8 +6,13 @@ import type { Color } from 'chess.js'
 import { TIME_CONTROLS, flagTime, lastTimes, newClock, recordMove, sameControl, undoMove, type ClockState, type TimeControl } from '../game/clock'
 import { gameStatus, replay, timeoutStatus } from '../game/rules'
 import {
+  CHAT_BURST,
+  CHAT_KEEP,
+  CHAT_LIMIT,
+  CHAT_PER_SECOND,
   fromUci,
   takebackPlies,
+  type ChatLine,
   type ClientMessage,
   type ClockView,
   type ColorChoice,
@@ -24,6 +29,9 @@ export type SeatData = {
   token: string
   name: string
   lag: number // thời gian đường truyền người này khai ở nước gần nhất (ms), để không xử thua oan khi mạng chậm
+  chatOff: boolean // người này đã tắt chat
+  chatBudget: number // còn được gửi liền bấy nhiêu câu chat (hồi lại CHAT_PER_SECOND câu mỗi giây, tối đa CHAT_BURST)
+  chatAt: number // lúc tính `chatBudget` gần nhất
 }
 
 export type GameData = {
@@ -49,6 +57,8 @@ export type RoomData = {
   seats: SeatData[]
   game: GameData | null
   score: [number, number] // tỉ số theo ghế, cộng dồn qua các ván tái đấu
+  chat: ChatLine[] // CHAT_KEEP câu chat gần nhất của cả phòng, cũ trước mới sau
+  chatNext: number // số thứ tự của câu chat tiếp theo
   updated: number
 }
 
@@ -63,12 +73,27 @@ export const LAG_QUOTA_MAX = 7 * LAG_QUOTA_GAIN
 const NAME_LIMIT = 20
 // Tên trong thư dài hơn mức này thì khỏi đọc (tên thật chỉ giữ 20 ký tự).
 const RAW_NAME_LIMIT = 200
+// Câu chat trong thư dài hơn mức này thì khỏi đọc (câu thật chỉ giữ CHAT_LIMIT ký tự, emoji tính hai).
+const RAW_CHAT_LIMIT = 4 * CHAT_LIMIT
 
 export function cleanName(name: unknown): string {
   if (typeof name !== 'string') return ''
   // Bỏ ký tự điều khiển, dồn khoảng trắng, cắt theo ký tự thật (emoji, chữ có dấu không bị cắt đôi).
   const clean = name.replace(/[\p{Cc}\p{Cf}]/gu, '').replace(/\s+/g, ' ').trim()
   return [...clean].slice(0, NAME_LIMIT).join('')
+}
+
+// Làm gọn câu chat: dồn khoảng trắng và xuống dòng thành một dấu cách, bỏ ký tự điều khiển và ký tự vô hình (giữ ký tự
+// nối emoji như 👨‍👩‍👧), mỗi chữ giữ tối đa hai dấu chồng lên (đủ cho tiếng Việt, chặn kiểu chữ chồng dấu tràn ra ngoài),
+// rồi cắt theo ký tự thật như tên người chơi.
+export function cleanChat(text: string): string {
+  const clean = text
+    .normalize('NFC')
+    .replace(/\s+/g, ' ')
+    .replace(/(?!\u200D)[\p{Cc}\p{Cf}]/gu, '')
+    .replace(/(\p{M}{2})\p{M}+/gu, '$1')
+    .trim()
+  return [...clean].slice(0, CHAT_LIMIT).join('').trim()
 }
 
 function validToken(token: unknown): token is string {
@@ -118,6 +143,10 @@ export function parseClientMessage(text: string): ClientMessage | null {
     case 'takeback':
     case 'rematch':
       return typeof message.yes === 'boolean' ? { t: message.t, yes: message.yes } : null
+    case 'chat':
+      return typeof message.text === 'string' && message.text.length <= RAW_CHAT_LIMIT ? { t: 'chat', text: message.text } : null
+    case 'chatOff':
+      return typeof message.off === 'boolean' ? { t: 'chatOff', off: message.off } : null
     default:
       return null
   }
@@ -128,11 +157,17 @@ export function createRoom(id: string, request: CreateRequest, now: number): Roo
     id,
     control: request.control,
     hostColor: request.color,
-    seats: [{ token: request.token, name: request.name, lag: 0 }],
+    seats: [newSeat(request.token, request.name)],
     game: null,
     score: [0, 0],
+    chat: [],
+    chatNext: 1,
     updated: now,
   }
+}
+
+function newSeat(token: string, name: string): SeatData {
+  return { token, name, lag: 0, chatOff: false, chatBudget: CHAT_BURST, chatAt: 0 }
 }
 
 export function seatOf(room: RoomData, token: string | null): Seat | null {
@@ -168,6 +203,13 @@ function newGame(number: number, white: Seat, control: TimeControl | null): Game
 
 // Phòng lưu từ bản trước (ván đang chơi dở lúc web lên bản mới) thiếu vài ô mới: điền giá trị đầu.
 export function upgradeRoom(room: RoomData): RoomData {
+  if (!Array.isArray(room.chat)) room.chat = []
+  room.chatNext ??= 1
+  for (const seat of room.seats as (Partial<SeatData> & SeatData)[]) {
+    seat.chatOff ??= false
+    seat.chatBudget ??= CHAT_BURST
+    seat.chatAt ??= 0
+  }
   const game = room.game as (Partial<GameData> & GameData) | null
   if (!game) return room
   if (!Array.isArray(game.lagQuota)) game.lagQuota = [LAG_QUOTA_START, LAG_QUOTA_START]
@@ -186,7 +228,7 @@ export function upgradeRoom(room: RoomData): RoomData {
 // Bạn bè bấm "Vào chơi": ngồi ghế còn trống, máy chủ bốc màu nếu chủ phòng chọn ngẫu nhiên, rồi bắt đầu ván.
 export function join(room: RoomData, token: string, name: string, random: () => number): boolean {
   if (room.seats.length >= 2 || seatOf(room, token) !== null) return false
-  room.seats.push({ token, name: cleanName(name), lag: 0 })
+  room.seats.push(newSeat(token, cleanName(name)))
   const hostColor = room.hostColor === 'random' ? (random() < 0.5 ? 'w' : 'b') : room.hostColor
   room.game = newGame(1, hostColor === 'w' ? 0 : 1, room.control)
   return true
@@ -352,8 +394,32 @@ function rematch(room: RoomData, seat: Seat, yes: boolean): boolean {
   return true
 }
 
+// Người chơi có mã `token` gửi một câu chat. Trả về câu đã ghi để báo cho hai người chơi, hoặc null nếu không nhận:
+// người xem, bạn bè chưa vào phòng, người gửi đang tắt chat, câu rỗng, hay gửi quá dày (xem CHAT_BURST).
+export function chat(room: RoomData, token: string | null, text: string, now: number): ChatLine | null {
+  const seat = seatOf(room, token)
+  if (seat === null || !room.game) return null
+  const sender = room.seats[seat]
+  const clean = cleanChat(text)
+  if (sender.chatOff || !clean) return null
+  sender.chatBudget = Math.min(CHAT_BURST, sender.chatBudget + (Math.max(0, now - sender.chatAt) * CHAT_PER_SECOND) / 1000)
+  sender.chatAt = now
+  if (sender.chatBudget < 1) return null
+  sender.chatBudget -= 1
+  const line: ChatLine = { id: room.chatNext++, by: seat === 0 ? 'host' : 'guest', text: clean, at: now, game: room.game.number }
+  room.chat.push(line)
+  if (room.chat.length > CHAT_KEEP) room.chat.splice(0, room.chat.length - CHAT_KEEP)
+  room.updated = now
+  return line
+}
+
+// Chat người có mã `token` được thấy: hai người chơi thấy cả, người xem không thấy gì (null).
+export function chatOf(room: RoomData, token: string | null): ChatLine[] | null {
+  return seatOf(room, token) === null ? null : room.chat
+}
+
 // Làm theo thư của người có mã `token`. Trả về true nếu phòng có thay đổi (cần lưu lại và báo cho mọi người).
-// Thư "hello" do phần nối mạng tự xử, không vào đây.
+// Thư "hello" do phần nối mạng tự xử, câu chat thì đi qua `chat`, không vào đây.
 export function handle(room: RoomData, token: string | null, message: ClientMessage, now: number, random: () => number): boolean {
   const flagged = checkFlag(room, now)
   if (token === null) return flagged
@@ -377,6 +443,10 @@ export function handle(room: RoomData, token: string | null, message: ClientMess
     case 'rematch':
       changed = rematch(room, seat, message.yes === true)
       break
+    case 'chatOff':
+      changed = room.seats[seat].chatOff !== message.off
+      room.seats[seat].chatOff = message.off
+      break
   }
   if (changed) room.updated = now
   return changed || flagged
@@ -399,6 +469,7 @@ function clockView(game: GameData, now: number): ClockView | null {
 export function viewsOf(room: RoomData, now: number, online: [boolean, boolean]): (seat: Seat | null) => RoomView {
   const game = room.game
   const name = (s: Seat) => room.seats[s]?.name ?? ''
+  const player = (s: Seat) => ({ name: name(s), online: online[s], chatOff: room.seats[s]?.chatOff ?? false })
   let shared: Omit<GameView, 'you'> | null = null
   if (game) {
     const byColor = <T,>(pick: (s: Seat) => T): Record<Color, T> =>
@@ -406,7 +477,7 @@ export function viewsOf(room: RoomData, now: number, online: [boolean, boolean])
     const color = (seat: Seat | null) => (seat === null ? null : colorOf(game, seat))
     shared = {
       number: game.number,
-      players: byColor((s) => ({ name: name(s), online: online[s] })),
+      players: byColor(player),
       score: byColor((s) => room.score[s]),
       moves: [...game.moves],
       moveTimes: [...game.clock.spent],
@@ -423,7 +494,7 @@ export function viewsOf(room: RoomData, now: number, online: [boolean, boolean])
   return (seat) => ({
     id: room.id,
     control: room.control,
-    host: { name: name(0), online: online[0] },
+    host: player(0),
     hostColor: room.hostColor,
     role: seat === 0 ? 'host' : seat === 1 ? 'guest' : 'visitor',
     game: game && shared ? { ...shared, you: seat === null ? null : colorOf(game, seat) } : null,

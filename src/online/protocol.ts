@@ -16,7 +16,8 @@ export type OnlineStatus = GameResult
 export type CreateRequest = { token: string; name: string; control: TimeControl | null; color: ColorChoice }
 export type CreateResponse = { id: string }
 
-export type PlayerView = { name: string; online: boolean }
+// chatOff: người này đã tắt chat (bên kia thấy dòng báo, khỏi nói một mình).
+export type PlayerView = { name: string; online: boolean; chatOff: boolean }
 
 // Đồng hồ như máy chủ thấy lúc gửi thư: thời gian còn lại của hai bên và bên nào đang bị trừ giờ.
 export type ClockView = { control: TimeControl; times: Times; running: Color | null }
@@ -47,6 +48,10 @@ export type RoomView = {
   game: GameView | null // null: đang chờ bạn bè vào phòng
 }
 
+// Một câu chat giữa hai người chơi. Màu quân đổi qua các ván nên ghi theo người gửi là chủ phòng hay khách;
+// `game`: gửi trong ván thứ mấy, để khung chat kẻ vạch "Ván 2" khi đấu ván nữa.
+export type ChatLine = { id: number; by: 'host' | 'guest'; text: string; at: number; game: number }
+
 export type ClientMessage =
   | { t: 'hello'; token: string } // gửi đầu tiên mỗi lần nối mạng, để máy chủ biết mình là ai
   | { t: 'join'; name: string } // bạn bè bấm "Vào chơi"
@@ -55,6 +60,8 @@ export type ClientMessage =
   | { t: 'draw'; yes: boolean } // xin hòa, đồng ý hòa; `yes: false` là từ chối hoặc rút lời xin
   | { t: 'takeback'; yes: boolean } // xin đi lại, đồng ý cho đi lại; `yes: false` là từ chối hoặc rút lời xin
   | { t: 'rematch'; yes: boolean } // xin tái đấu, đồng ý tái đấu; `yes: false` là từ chối hoặc rút lời mời
+  | { t: 'chat'; text: string } // gửi một câu chat (chỉ hai người chơi)
+  | { t: 'chatOff'; off: boolean } // tắt hoặc bật lại chat của mình
 
 // Máy chủ báo lỗi rồi ngắt đường dây, máy người chơi thôi không nối lại:
 // - not-found: không có phòng này;
@@ -62,11 +69,20 @@ export type ClientMessage =
 // - replaced: người này mở phòng ở quá nhiều tab hoặc máy, tab cũ nhất bị ngắt để nhường chỗ cho tab mới.
 export type ErrorCode = 'not-found' | 'full' | 'replaced'
 
-export type ServerMessage = { t: 'state'; room: RoomView } | { t: 'error'; code: ErrorCode }
+// Chat gửi riêng, không nằm trong thư tình hình, để mỗi nước đi khỏi phải gửi lại cả trăm câu chat.
+// `all`: đây là toàn bộ chat (lúc vừa nối mạng); không thì là câu mới thêm. Người xem không nhận chat.
+export type ServerMessage = { t: 'state'; room: RoomView } | { t: 'chat'; lines: ChatLine[]; all: boolean } | { t: 'error'; code: ErrorCode }
 
 // Mỗi phòng cho tối đa bấy nhiêu người xem cùng lúc (không tính hai người chơi), để kẻ có link không mở
 // hàng trăm đường dây làm đơ ván.
 export const MAX_VISITORS = 8
+
+// Mỗi câu chat dài tối đa CHAT_LIMIT ký tự; máy chủ giữ CHAT_KEEP câu gần nhất của cả phòng (qua các ván).
+// Mỗi người gửi liền một lúc tối đa CHAT_BURST câu, sau đó CHAT_PER_SECOND câu mỗi giây; dày hơn thì máy chủ bỏ.
+export const CHAT_LIMIT = 200
+export const CHAT_KEEP = 100
+export const CHAT_BURST = 5
+export const CHAT_PER_SECOND = 1
 
 // Mỗi phòng có mã 8 ký tự, bỏ các chữ dễ nhầm (l, 1, o, 0, i).
 export const ROOM_ID = /^[a-hjkmnp-z2-9]{8}$/
