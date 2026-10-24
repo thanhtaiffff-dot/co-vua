@@ -2,10 +2,8 @@
 // 3D) và bàn cờ riêng, phối tùy ý. Bảng không che bàn cờ (điện thoại: nằm ở đáy màn hình; máy tính: góc phải) và không
 // làm tối trang, để thấy ngay bàn cờ thật đổi theo từng lần chạm.
 import { Fragment, useRef, useState } from 'react'
-import { boardIcon, is3d, PIECE_SHAPES, piecesIcon, setTheme, useTheme, type PieceShape } from '../theme'
+import { boardIcon, is3d, PIECE_SHAPES, piecesIcon, setTheme, SHAPE_NAMES, useTheme } from '../theme'
 import { BOARD_GROUPS, boardInfo, PIECE_GROUPS, pieceSetInfo, type PieceSetId } from '../themeCatalog'
-
-const SHAPE_NAMES: Record<PieceShape, string> = { round: 'Bo tròn', faceted: 'Góc cạnh', modern: 'Hiện đại' }
 
 type Props = {
   // Vừa chọn bộ quân `id` (để đầu trang cho nghe tiếng của bộ đó nếu tiếng đang theo chủ đề).

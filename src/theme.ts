@@ -9,6 +9,7 @@ export const PIECE_SHAPES = ['round', 'faceted', 'modern'] as const
 export type PieceShape = (typeof PIECE_SHAPES)[number]
 export type PieceStyle = '2d' | '3d'
 export type Theme = { pieces: PieceSetId; board: BoardId; style: PieceStyle; shape: PieceShape }
+export const SHAPE_NAMES: Record<PieceShape, string> = { round: 'Bo tròn', faceted: 'Góc cạnh', modern: 'Hiện đại' }
 
 // Mặc định giữ nguyên giao diện cũ: quân cburnett trên bàn nâu.
 export const DEFAULT_THEME: Theme = { pieces: 'classic', board: 'classic', style: '2d', shape: 'round' }

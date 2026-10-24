@@ -11,6 +11,8 @@ import { PromotionPicker } from './components/PromotionPicker'
 import { ResultCard } from './components/ResultCard'
 import { TimeControlPicker } from './components/TimeControlPicker'
 import { TopBar } from './components/TopBar'
+import { describeGame, useFeedbackGame } from './feedback/context'
+import { PageFoot } from './feedback/FeedbackForm'
 import { describeControl, flagTime, lastTimes, lowTime, newClock, recordMove, restoreClock, undoMove, type ClockState } from './game/clock'
 import {
   capturedPieces,
@@ -207,6 +209,11 @@ export default function App() {
 
   const times = clock.spent
 
+  // Ván đang chơi, để góp ý gửi kèm (người gặp lỗi khỏi phải tự kể).
+  const feedbackState = describeGame(status, clock.control)
+  const feedbackGame = useMemo(() => ({ sans, side: boardSide, state: feedbackState }), [sans, boardSide, feedbackState])
+  useFeedbackGame(feedbackGame)
+
   return (
     <div className="app">
       <TopBar switchTo={{ path: '/online', label: 'Chơi online' }} />
@@ -294,6 +301,7 @@ export default function App() {
           </p>
         </aside>
       </main>
+      <PageFoot />
     </div>
   )
 }

@@ -11,6 +11,7 @@ import { MoveList, MoveStrip } from '../components/MoveList'
 import { PlayerBar, type ClockFace } from '../components/PlayerBar'
 import { PromotionPicker } from '../components/PromotionPicker'
 import { ResultCard } from '../components/ResultCard'
+import { describeGame, useFeedbackGame } from '../feedback/context'
 import { describeControl, lowTime } from '../game/clock'
 import { capturedPieces, describeMove, gameStatus, isPromotion, legalDests, materialDiff, replay, type PlayedMove } from '../game/rules'
 import { END_DELAY, playMove, playSound } from '../sound'
@@ -95,6 +96,11 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
   const times = live ? [...game.moveTimes, null] : game.moveTimes
   const bottom: Color = flipped ? other(me ?? 'w') : (me ?? 'w')
   const top = other(bottom)
+
+  // Ván đang chơi, để góp ý gửi kèm (người gặp lỗi khỏi phải tự kể).
+  const feedbackState = `${me ? `Bạn cầm ${COLOR_NAME[me]}` : 'Đang xem'}, ván ${game.number} · ${describeGame(status, game.clock?.control ?? null)}`
+  const feedbackGame = useMemo(() => ({ sans, side: SIDE[bottom], state: feedbackState }), [sans, bottom, feedbackState])
+  useFeedbackGame(feedbackGame)
 
   // ---------- Xem lại nước cũ ----------
   const stepSound = useCallback((ply: number) => playMove(describeMove(replay(played.slice(0, ply - 1)), played[ply - 1])), [played])
