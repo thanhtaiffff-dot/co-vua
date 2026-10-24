@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { describeDevice, describeGame, pageName } from './context'
-import { cleanText, CONTACT_MAX, countFeedback, parseFeedback, parseQuery, TEXT_MAX } from './feedback'
+import { cleanText, CONTACT_MAX, parseFeedback, TEXT_MAX } from './feedback'
 
 const context = {
   page: 'Chơi một máy',
@@ -59,24 +59,6 @@ describe('cleanText', () => {
   })
 })
 
-describe('parseQuery', () => {
-  it('đọc bộ lọc của hộp thư, bỏ giá trị lạ', () => {
-    expect(parseQuery(new URLSearchParams('kind=bug&open=1&before=42'))).toEqual({ kind: 'bug', open: true, before: 42 })
-    expect(parseQuery(new URLSearchParams('kind=drop&open=yes&before=-3'))).toEqual({})
-  })
-})
-
-describe('countFeedback', () => {
-  it('đếm theo loại và trạng thái', () => {
-    const counts = countFeedback([
-      { kind: 'bug', status: 'new', n: 2 },
-      { kind: 'bug', status: 'done', n: 1 },
-      { kind: 'idea', status: 'seen', n: 3 },
-    ])
-    expect(counts).toEqual({ all: 6, new: 2, open: 5, bug: 3, idea: 3, praise: 0, other: 0 })
-  })
-})
-
 describe('describeDevice', () => {
   const phone = { width: 384, height: 832, touch: true, dark: true }
   it('Samsung Internet trên điện thoại Android', () => {
@@ -112,6 +94,5 @@ describe('pageName', () => {
     expect(pageName('/')).toBe('Chơi một máy')
     expect(pageName('/online')).toBe('Tạo phòng online')
     expect(pageName('/phong/x7k2m9ab')).toBe('Phòng online x7k2m9ab')
-    expect(pageName('/hop-thu')).toBe('Hộp thư góp ý')
   })
 })

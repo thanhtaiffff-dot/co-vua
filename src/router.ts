@@ -2,7 +2,6 @@
 //   /            chơi chung một máy
 //   /online      tạo phòng chơi online
 //   /phong/<mã>  phòng chơi online (link gửi cho bạn bè)
-//   /hop-thu     hộp thư góp ý (chỉ chủ web, mở bằng link riêng có chìa khoá)
 // Bản gộp một file (mở thẳng từ máy, hay bản chơi thử trong khung của Claude) không đổi được địa chỉ,
 // nên nhớ trang đang mở trong bộ nhớ.
 import { useSyncExternalStore } from 'react'
