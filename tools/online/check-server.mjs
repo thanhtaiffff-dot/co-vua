@@ -1,5 +1,6 @@
 // Kiểm tra máy chủ phòng chạy thật: tạo phòng, hai "người chơi" nối WebSocket, đi một ván chiếu bí nhanh,
-// rồi tái đấu xem có đổi màu không; sau đó thử chat và các giới hạn chống phá ván (người xem, số tab, thư rác, gửi dồn dập).
+// rồi tái đấu xem có đổi màu không; sau đó thử chat và các giới hạn chống phá ván (người xem, số tab, thư rác, gửi dồn dập,
+// tạo phòng dồn dập).
 // Cần chạy máy chủ trước: `npm run build && npx wrangler dev`.
 // Cách dùng: node tools/online/check-server.mjs [địa chỉ, mặc định http://127.0.0.1:8787]
 const base = process.argv[2] ?? 'http://127.0.0.1:8787'
@@ -44,21 +45,27 @@ function player(id) {
 }
 
 const newToken = (who) => who + '-' + crypto.randomUUID().replaceAll('-', '')
+
+// Người gác cửa đếm lượt tạo phòng theo mạng. Máy chạy thử tin ô CF-Connecting-IP gửi lên (web thật thì Cloudflare tự ghi
+// địa chỉ thật, không giả được), nên mỗi lần chạy giả làm một mạng mới, chạy lại nhiều lần không bị chặn.
+// Mỗi lần chạy tạo 21 phòng; cả web chỉ cho 300 phòng mỗi giờ, nên chạy quá 14 lần trong một giờ thì tắt mở lại máy chủ.
+const randomNetwork = () => `2001:db8:${Math.floor(Math.random() * 0x10000).toString(16)}:${Math.floor(Math.random() * 0x10000).toString(16)}::1`
+const myNetwork = randomNetwork()
+function createRoom(body, network = myNetwork) {
+  return fetch(`${base}/api/rooms`, { method: 'POST', headers: { 'CF-Connecting-IP': network }, body })
+}
 const hostToken = newToken('host')
 const guestToken = newToken('guest')
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-const bad = await fetch(`${base}/api/rooms`, { method: 'POST', body: JSON.stringify({ token: 'x' }) })
+const bad = await createRoom(JSON.stringify({ token: 'x' }))
 if (bad.status !== 400) fail('gửi sai mà không bị từ chối: ' + bad.status)
-const noControl = await fetch(`${base}/api/rooms`, { method: 'POST', body: JSON.stringify({ token: hostToken, name: 'x', color: 'w' }) })
+const noControl = await createRoom(JSON.stringify({ token: hostToken, name: 'x', color: 'w' }))
 if (noControl.status !== 400) fail('thiếu mức giờ mà không bị từ chối lịch sự: ' + noControl.status)
-const huge = await fetch(`${base}/api/rooms`, { method: 'POST', body: 'x'.repeat(100_000) })
+const huge = await createRoom('x'.repeat(100_000))
 if (huge.status !== 413) fail('gửi thư quá dài mà không bị từ chối: ' + huge.status)
 
-const created = await fetch(`${base}/api/rooms`, {
-  method: 'POST',
-  body: JSON.stringify({ token: hostToken, name: 'Tài', control: { minutes: 3, increment: 2 }, color: 'random' }),
-})
+const created = await createRoom(JSON.stringify({ token: hostToken, name: 'Tài', control: { minutes: 3, increment: 2 }, color: 'random' }))
 if (created.status !== 201) fail('tạo phòng: ' + created.status + ' ' + (await created.text()))
 const { id } = await created.json()
 console.log('Tạo phòng', id)
@@ -174,10 +181,7 @@ host.ws.close()
 // Các giới hạn chống phá ván, trong một phòng mới không tính giờ.
 const limitsHost = newToken('host')
 const limitsGuest = newToken('guest')
-const limitsRoom = await fetch(`${base}/api/rooms`, {
-  method: 'POST',
-  body: JSON.stringify({ token: limitsHost, name: 'Tài', control: null, color: 'w' }),
-})
+const limitsRoom = await createRoom(JSON.stringify({ token: limitsHost, name: 'Tài', control: null, color: 'w' }))
 const room2 = (await limitsRoom.json()).id
 const a = player(room2)
 await a.send({ t: 'hello', token: limitsHost })
@@ -288,5 +292,18 @@ if (replaced.code !== 'replaced') fail('tab cũ nhất nhận sai thư: ' + JSON
 console.log('Tab thứ 5 của một người: tab cũ nhất bị ngắt')
 
 for (const c of [a, b, back, late, ...crowd, ...tabs]) c.ws.close()
+
+// Người gác cửa: một mạng tạo liền được 20 phòng (mạng này đã tạo 2 phòng ở trên), phòng thứ 21 bị từ chối;
+// mạng khác vẫn tạo được bình thường.
+const roomBody = () => JSON.stringify({ token: newToken('host'), name: 'Tài', control: { minutes: 3, increment: 2 }, color: 'w' })
+const floodStatuses = []
+for (let i = 0; i < 18; i++) floodStatuses.push((await createRoom(roomBody())).status)
+if (floodStatuses.some((status) => status !== 201)) fail('chưa tới 20 phòng mà đã bị chặn: ' + floodStatuses.join(' '))
+const tooMany = await createRoom(roomBody())
+if (tooMany.status !== 429 || (await tooMany.json()).error !== 'slow') fail('tạo phòng thứ 21 liền mà không bị chặn: ' + tooMany.status)
+const otherNetwork = await createRoom(roomBody(), randomNetwork())
+if (otherNetwork.status !== 201) fail('mạng khác bị chặn oan: ' + otherNetwork.status)
+console.log('Tạo phòng dồn dập: mạng gửi dồn bị chặn ở phòng thứ 21, mạng khác vẫn tạo được')
+
 console.log('XONG: máy chủ chạy đúng')
 process.exit(0)

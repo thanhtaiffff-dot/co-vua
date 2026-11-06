@@ -3,13 +3,16 @@
 //   POST /api/rooms          tạo phòng mới, trả về mã phòng
 //   GET  /api/rooms/<mã>/ws  nối WebSocket vào phòng (chuyển thẳng cho máy chủ của phòng đó)
 //   POST /api/feedback       gửi một góp ý (ai cũng gửi được, có giới hạn lượt); máy chủ đưa nó thành Issue trên GitHub
+// Tạo phòng và gửi góp ý phải qua "người gác cửa" (worker/gate.ts) trước: mạng nào gửi dồn dập thì bị từ chối (429).
 import { BODY_MAX, parseFeedback } from '../src/feedback/feedback'
+import { networkOf, type GateKind } from '../src/gate'
 import { newRoomId, ROOM_ID, type CreateResponse } from '../src/online/protocol'
 import { parseCreateRequest } from '../src/online/room'
 import type { Env } from './room-server'
 
 export { ChessRoom } from './room-server'
 export { FeedbackBox } from './feedback-box'
+export { Gate } from './gate'
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -38,6 +41,8 @@ async function createRoom(request: Request, env: Env): Promise<Response> {
   if (body instanceof Response) return body
   const create = parseCreateRequest(body)
   if (!create) return json({ error: 'Thiếu hoặc sai thông tin tạo phòng' }, 400)
+  const refused = await askGate(env, 'room', await whoIs(request))
+  if (refused) return refused
   // Mã phòng bốc ngẫu nhiên; lỡ trùng phòng đã có thì bốc lại.
   for (let attempt = 0; attempt < 5; attempt++) {
     const id = newRoomId((n) => crypto.getRandomValues(new Uint8Array(n)))
@@ -53,6 +58,20 @@ async function sha256(text: string): Promise<Uint8Array> {
 
 function hex(bytes: Uint8Array): string {
   return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+// Mã của mạng người gửi (xem networkOf trong src/gate.ts), để đếm lượt gửi. Chỉ là bản mã hoá một chiều, đổi mỗi ngày:
+// người gác cửa và hàng chờ góp ý không bao giờ thấy địa chỉ thật.
+async function whoIs(request: Request): Promise<string> {
+  const network = networkOf(request.headers.get('CF-Connecting-IP') ?? '')
+  return hex(await sha256(`${network}|${new Date().toISOString().slice(0, 10)}`)).slice(0, 32)
+}
+
+// Hỏi người gác cửa cho mạng `who` làm việc `kind` không. Không cho thì trả về câu trả lời 429 để gửi lại luôn:
+// { error: 'slow' } là mạng này gửi dồn dập quá, { error: 'busy' } là cả web đang nhận quá nhiều.
+async function askGate(env: Env, kind: GateKind, who: string): Promise<Response | null> {
+  const result = await env.GATE.get(env.GATE.idFromName('gac-cua')).allow(kind, who)
+  return result === 'ok' ? null : json({ error: result }, 429)
 }
 
 // Cả web dùng chung một hàng chờ góp ý. Tên 'hop-thu' có từ thời hộp thư cũ, giữ nguyên để góp ý cũ còn chờ vẫn được gửi.
@@ -71,9 +90,11 @@ async function sendFeedback(request: Request, env: Env, ctx: ExecutionContext): 
   // Máy dò tự động điền ô bẫy: giả vờ nhận cho nó thôi gửi lại, nhưng không lưu.
   if (input === 'trap') return json({ ok: true }, 201)
   if (!input) return json({ error: 'Thiếu hoặc sai nội dung góp ý' }, 400)
-  // Đếm lượt gửi theo địa chỉ mạng, nhưng chỉ đưa cho hàng chờ bản mã hoá một chiều (đổi mỗi ngày), không lưu địa chỉ thật.
-  const ip = request.headers.get('CF-Connecting-IP') ?? ''
-  const who = hex(await sha256(`${ip}|${new Date().toISOString().slice(0, 10)}`)).slice(0, 32)
+  const who = await whoIs(request)
+  // Người gác cửa chặn gửi dồn trước, để thư rác không chạm tới hàng chờ (hàng chờ đếm lượt bằng cơ sở dữ liệu,
+  // mỗi lần đếm tốn hạn mức đọc). Hàng chờ vẫn tự đếm thêm một lần nữa, và giới hạn số góp ý mỗi ngày.
+  const refused = await askGate(env, 'feedback', who)
+  if (refused) return refused
   const box = feedbackBox(env)
   const result = await box.submit(input, who, Date.now())
   if (result !== 'ok') return json({ error: result }, SUBMIT_REFUSED[result])

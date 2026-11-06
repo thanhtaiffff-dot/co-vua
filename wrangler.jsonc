@@ -13,7 +13,8 @@
     "run_worker_first": ["/api/*"]
   },
   // Mỗi phòng chơi online là một Durable Object lớp ChessRoom (xem worker/room-server.ts); hàng chờ góp ý là một
-  // Durable Object lớp FeedbackBox duy nhất (worker/feedback-box.ts).
+  // Durable Object lớp FeedbackBox duy nhất (worker/feedback-box.ts); "người gác cửa" chặn tạo phòng và gửi góp ý
+  // dồn dập là một Durable Object lớp Gate duy nhất (worker/gate.ts).
   // Gói miễn phí của Cloudflare chỉ cho loại lưu bằng SQLite, nên khai báo ở "new_sqlite_classes". Mỗi lần thêm lớp mới
   // là thêm một dòng "migrations" mới, không sửa dòng cũ.
   // Góp ý thành Issue trong repo riêng tư này. Token GitHub để tạo Issue là Secret tên GITHUB_TOKEN, dán trong trang
@@ -22,11 +23,13 @@
   "durable_objects": {
     "bindings": [
       { "name": "ROOMS", "class_name": "ChessRoom" },
-      { "name": "FEEDBACK", "class_name": "FeedbackBox" }
+      { "name": "FEEDBACK", "class_name": "FeedbackBox" },
+      { "name": "GATE", "class_name": "Gate" }
     ]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["ChessRoom"] },
-    { "tag": "v2", "new_sqlite_classes": ["FeedbackBox"] }
+    { "tag": "v2", "new_sqlite_classes": ["FeedbackBox"] },
+    { "tag": "v3", "new_sqlite_classes": ["Gate"] }
   ]
 }
