@@ -7,7 +7,7 @@ type Props = {
 export function SoundToggle({ on, onToggle }: Props) {
   const label = on ? 'Tắt âm thanh' : 'Bật âm thanh'
   return (
-    <button type="button" className={`icon-btn${on ? '' : ' icon-btn--off'}`} onClick={onToggle} aria-pressed={on} aria-label={label} title={label}>
+    <button type="button" className={`icon-btn${on ? '' : ' icon-btn--off'}`} onClick={onToggle} aria-pressed={on} aria-label={label} data-tip={label}>
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M4 9.5h3.2L12 5.6v12.8l-4.8-3.9H4z" fill="currentColor" />
         {on ? (

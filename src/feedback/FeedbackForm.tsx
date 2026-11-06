@@ -1,8 +1,9 @@
-// Nút Góp ý (hình phong thư, rê chuột vào mới chạy ra chữ "Góp ý" cho đầu trang khỏi rườm rà) và form góp ý mở ra khi
+// Nút Góp ý (hình phong thư, rê chuột vào mới hiện chữ "Góp ý" cho đầu trang khỏi rườm rà) và form góp ý mở ra khi
 // bấm: điện thoại thì trượt lên từ cạnh dưới, máy tính thì hiện giữa màn hình, như bảng chọn bộ tiếng.
 // Form gồm loại góp ý, nội dung, tên hay cách liên lạc (không bắt buộc), và thông tin ván, máy gửi kèm (tắt được,
 // xem được trước khi gửi). Góp ý tới chủ web dưới dạng Issue trên GitHub.
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react'
+import { AboutButton } from '../components/AboutSheet'
 import { myName } from '../online/identity'
 import { usePath } from '../router'
 import { FeedbackError, sendFeedback, type FeedbackProblem } from './api'
@@ -37,19 +38,18 @@ export function FeedbackButton({ place }: { place: 'top' | 'foot' }) {
       onClick={openFeedback}
       aria-haspopup="dialog"
       aria-label="Góp ý"
+      data-tip="Góp ý"
     >
-      <span className="fb-btn__label" aria-hidden="true">
-        Góp ý
-      </span>
       <Envelope />
     </button>
   )
 }
 
-// Cuối trang: chỉ điện thoại hẹp mới thấy (xem feedback.css).
+// Cuối trang: chỉ điện thoại hẹp mới thấy (xem feedback.css). Có nút Góp ý và nút Mẹo và ghi công.
 export function PageFoot() {
   return (
     <footer className="page-foot">
+      <AboutButton place="foot" />
       <FeedbackButton place="foot" />
     </footer>
   )

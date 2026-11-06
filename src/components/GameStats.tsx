@@ -8,6 +8,7 @@ import { piecesText } from '../game/rules'
 import { gameStats, moveLabel, QUICK_MS, type MoveTime, type SideStats } from '../game/stats'
 import { loadSaved, save } from '../storage'
 import { CapturedPieces } from './CapturedPieces'
+import { San } from './San'
 
 type Props = {
   chess: Chess
@@ -49,7 +50,8 @@ export function GameStats({ chess, sans, times, clocks, name, shown, onGo }: Pro
         main={formatThink(move.ms)}
         sub={
           <button type="button" className="link-button stats__move" onClick={() => onGo(move.ply)}>
-            {moveLabel(move.ply, sans[move.ply - 1])}
+            {moveLabel(move.ply, '')}
+            <San san={sans[move.ply - 1]} />
           </button>
         }
       />

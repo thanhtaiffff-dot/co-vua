@@ -1,11 +1,11 @@
-import { TIME_CONTROLS, controlLabel, sameControl, type TimeControl } from '../game/clock'
+import { TIME_CONTROLS, controlLabel, describeControl, sameControl, type TimeControl } from '../game/clock'
 
 type Props = {
   value: TimeControl | null
   onChange: (control: TimeControl | null) => void
 }
 
-// Bảng chọn thời gian, chỉ hiện trước khi ván bắt đầu.
+// Bảng chọn thời gian, chỉ hiện trước khi ván bắt đầu. Ô có cộng giờ (3 | 2...) rê chuột vào thì hiện lời giải thích.
 export function TimeControlPicker({ value, onChange }: Props) {
   return (
     <div className="tc" role="group" aria-labelledby="tc-title">
@@ -24,6 +24,8 @@ export function TimeControlPicker({ value, onChange }: Props) {
                   type="button"
                   className={`tc__choice${on ? ' tc__choice--on' : ''}`}
                   aria-pressed={on}
+                  aria-label={describeControl(control)}
+                  data-tip={control.increment > 0 ? describeControl(control) : undefined}
                   onClick={() => onChange(control)}
                 >
                   {controlLabel(control)}
@@ -41,7 +43,6 @@ export function TimeControlPicker({ value, onChange }: Props) {
       >
         Không tính giờ
       </button>
-      <p className="tc__hint">3 | 2 là mỗi bên 3 phút, đi xong mỗi nước được cộng 2 giây. Đồng hồ chạy từ lúc Trắng đi nước đầu.</p>
     </div>
   )
 }

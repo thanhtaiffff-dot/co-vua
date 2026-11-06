@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Color, PieceSymbol, Square } from 'chess.js'
 import type { Config } from '@lichess-org/chessground/config'
 import type { Key } from '@lichess-org/chessground/types'
+import { ActionButton } from '../components/ActionButton'
 import { Board } from '../components/Board'
 import { BoardTools } from '../components/BoardTools'
 import { MoveList, MoveStrip } from '../components/MoveList'
@@ -12,14 +13,14 @@ import { PlayerBar, type ClockFace } from '../components/PlayerBar'
 import { PromotionPicker } from '../components/PromotionPicker'
 import { ResultCard } from '../components/ResultCard'
 import { describeGame, useFeedbackGame } from '../feedback/context'
-import { describeControl, lowTime } from '../game/clock'
+import { controlLabel, lowTime } from '../game/clock'
 import { capturedPieces, describeMove, gameStatus, isPromotion, legalDests, materialDiff, replay, type PlayedMove } from '../game/rules'
 import { END_DELAY, playMove, playSound } from '../sound'
 import { useNow } from '../useNow'
 import { showBoard, useReview } from '../useReview'
 import { navigate } from '../router'
 import { loadSaved, save } from '../storage'
-import { ChatBubble, ChatButton, ChatPanel } from './ChatPanel'
+import { ChatBubble, ChatPanel } from './ChatPanel'
 import type { ConnectionStatus } from './connection'
 import { MAX_PREMOVES, premoveBoard, premoveToMove, type Premove } from './premove'
 import { fromUci, takebackPlies, toUci, type ClientMessage, type GameView, type OnlineStatus, type RoomView } from './protocol'
@@ -52,6 +53,43 @@ type Props = {
 function points(score: number): string {
   const whole = Math.floor(score)
   return score % 1 ? `${whole || ''}½` : String(whole)
+}
+
+// Tỉ số các ván trong phòng, như bảng tỉ số: người ở dưới bàn cờ bên trái, người ở trên bên phải. Máy tính: thẻ đầu cột
+// bên phải, có dòng nhỏ "Ván 4 · 5 phút" và đèn xanh. Điện thoại: một dòng ngay trên thanh tên phía trên (chỉ hiện từ
+// ván thứ hai, hay khi đã có điểm, cho ván đầu gọn).
+type Score = { number: number; control: string; left: string; right: string; leftScore: string; rightScore: string }
+
+function ScoreCard({ score }: { score: Score }) {
+  return (
+    <section className="scorecard" aria-label={`Tỉ số: ${score.left} ${score.leftScore}, ${score.right} ${score.rightScore}`}>
+      <p className="scorecard__meta">
+        <span className="led" aria-hidden="true" />
+        Ván {score.number} · {score.control}
+      </p>
+      <p className="scorecard__row" aria-hidden="true">
+        <span className="scorecard__name">{score.left}</span>
+        <b className="scorecard__num">{score.leftScore}</b>
+        <span className="scorecard__dash">–</span>
+        <b className="scorecard__num">{score.rightScore}</b>
+        <span className="scorecard__name">{score.right}</span>
+      </p>
+    </section>
+  )
+}
+
+function ScoreLine({ score }: { score: Score }) {
+  return (
+    <p className="scoreline" aria-hidden="true">
+      <span className="scoreline__meta">Ván {score.number}</span>
+      <span className="scoreline__name">{score.left}</span>
+      <b className="scoreline__num">
+        {score.leftScore} – {score.rightScore}
+      </b>
+      <span className="scoreline__name">{score.right}</span>
+      <span className="scoreline__meta scoreline__control">{score.control}</span>
+    </p>
+  )
 }
 
 export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag }: Props) {
@@ -338,18 +376,25 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
   // Bong bóng thoại hiện trên thanh tên đối thủ.
   const bubble = (color: Color) => alerts.bubble && color === opponent && <ChatBubble key={alerts.bubble.id} text={alerts.bubble.text} />
 
-  const match = showMatch && (
-    <p className="match">
-      Tỉ số: {name('w')} <b>{points(game.score.w)}</b> – <b>{points(game.score.b)}</b> {name('b')}
-    </p>
-  )
+  const score: Score = {
+    number: game.number,
+    control: clock ? controlLabel(clock.control) : 'Không tính giờ',
+    left: name(bottom),
+    right: name(top),
+    leftScore: points(game.score[bottom]),
+    rightScore: points(game.score[top]),
+  }
+  const check = status.kind === 'playing' && status.check
+  const declined = opponent !== null && game.takebackDeclined === me
+  const hinted = check || !seated || declined || premoves.length > 0 || review.reviewing
 
   return (
     <main className={`table${chatting ? ' table--chat' : ''}`}>
       {chatting && chatSide && <aside className="chat-col">{chatPanel()}</aside>}
-      {chatting && !chatSide && (chatSheet ? chatPanel(() => setChatSheet(false)) : <ChatButton unread={alerts.unread} off={chatOff} onClick={() => setChatSheet(true)} />)}
+      {chatting && !chatSide && chatSheet && chatPanel(() => setChatSheet(false))}
 
       <section className="board-col">
+        {showMatch && <ScoreLine score={score} />}
         <div className="bar-anchor">
           <PlayerBar
             color={top}
@@ -393,6 +438,8 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
       </section>
 
       <aside className="side">
+        <ScoreCard score={score} />
+
         {offline && (
           <p className="online-banner" role="status">
             Mất kết nối, đang nối lại… Nước đi của bạn sẽ được gửi khi có mạng.
@@ -460,12 +507,12 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
             }}
           />
         ) : (
-          <div className={`status${status.kind === 'playing' && status.check ? ' status--check' : ''}`} role="status">
+          <div className={`status${check ? ' status--check' : ''}${hinted ? '' : ' status--plain'}`} role="status">
             <span className="status__text">
               {status.kind === 'playing' && (status.check ? `${who(status.turn)} đang bị chiếu!` : `Tới lượt ${who(status.turn, false)}`)}
             </span>
             {!seated && <span className="status__hint">Phòng đã đủ hai người, bạn đang xem ván này.</span>}
-            {opponent && game.takebackDeclined === me && <span className="status__hint status__hint--warn">{name(opponent)} không cho đi lại.</span>}
+            {opponent && declined && <span className="status__hint status__hint--warn">{name(opponent)} không cho đi lại.</span>}
             {premoves.length > 0 && (
               <span className="status__hint">
                 Đã đặt sẵn {premoves.length} nước đi trước
@@ -483,17 +530,11 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
                 </button>
               </span>
             )}
-            <span className="status__clock">
-              {game.number > 1 ? `Ván ${game.number} · ` : ''}
-              {clock ? describeControl(clock.control) : 'Không tính giờ'}
-            </span>
-            {match}
           </div>
         )}
 
         {me && opponent && over && (
           <div className="offer">
-            {match}
             {game.rematchDeclined === me ? (
               <p className="offer__text">{name(opponent)} không muốn đấu ván nữa.</p>
             ) : game.rematch[me] ? (
@@ -530,42 +571,54 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
             </div>
           </div>
         )}
-        {!seated && over && match && <div className="card">{match}</div>}
-
-        {seated && !over && (
-          <div className="controls controls--online">
-            <button
-              type="button"
-              className="btn"
-              disabled={!canTakeback}
-              onClick={() => send({ t: 'takeback', yes: true })}
-              title={me && game.takebackAsked[me] && !askedOffer ? 'Mỗi lượt chỉ xin đi lại được một lần' : undefined}
-            >
-              {askedOffer ? 'Đang xin đi lại' : 'Xin đi lại'}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={early || drawOffered}
-              onClick={() => send({ t: 'draw', yes: true })}
-              title={early ? 'Xin hòa được sau khi mỗi bên đi một nước' : undefined}
-            >
-              {drawOffered ? 'Đã xin hòa' : 'Xin hòa'}
-            </button>
-            <button type="button" className={`btn${confirmResign ? ' btn--confirm' : ''}`} onClick={resign}>
-              {confirmResign ? 'Bấm lần nữa' : early ? 'Huỷ ván' : 'Đầu hàng'}
-            </button>
-          </div>
-        )}
-
-        {seated && !over && (
-          <p className="online-tip">
-            Mẹo: lúc đối thủ đang nghĩ, cứ kéo sẵn các nước tiếp theo (đi trước, tối đa {MAX_PREMOVES} nước). Tới lượt bạn là nước đầu tự đi. Chạm ô trống để
-            huỷ hết.
-          </p>
-        )}
 
         <MoveList sans={sans} times={times} shown={review.shown} onGo={review.go} />
+
+        {/* Nút chỉ có hình, rê chuột vào mới hiện chữ. Màn hình hẹp (chat không có cột riêng): thêm nút Chat. */}
+        {((seated && !over) || (chatting && !chatSide)) && (
+          <div className="actions">
+            {seated && !over && (
+              <>
+                <ActionButton
+                  icon="undo"
+                  label={
+                    askedOffer
+                      ? 'Đang xin đi lại'
+                      : me && game.takebackAsked[me]
+                        ? 'Mỗi lượt chỉ xin đi lại được một lần'
+                        : 'Xin đi lại'
+                  }
+                  pressed={askedOffer}
+                  disabled={!canTakeback}
+                  onClick={() => send({ t: 'takeback', yes: true })}
+                />
+                <ActionButton
+                  icon="half"
+                  label={drawOffered ? 'Đã xin hòa, chờ trả lời' : early ? 'Xin hòa được sau khi mỗi bên đi một nước' : 'Xin hòa'}
+                  pressed={drawOffered}
+                  disabled={early || drawOffered}
+                  onClick={() => send({ t: 'draw', yes: true })}
+                />
+                <ActionButton
+                  icon="flag"
+                  label={confirmResign ? (early ? 'Bấm lần nữa để huỷ ván' : 'Bấm lần nữa để đầu hàng') : early ? 'Huỷ ván' : 'Đầu hàng'}
+                  danger={confirmResign}
+                  showTip={confirmResign}
+                  onClick={resign}
+                />
+              </>
+            )}
+            {chatting && !chatSide && (
+              <ActionButton
+                icon={chatOff ? 'chatOff' : 'chat'}
+                label={chatOff ? 'Chat (đang tắt)' : 'Chat'}
+                badge={alerts.unread}
+                className="act--chat"
+                onClick={() => setChatSheet(true)}
+              />
+            )}
+          </div>
+        )}
       </aside>
     </main>
   )

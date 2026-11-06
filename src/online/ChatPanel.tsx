@@ -188,23 +188,6 @@ function clockTime(at: number): string {
 }
 
 // Nút Chat nổi ở góc dưới trên điện thoại, có chấm đỏ đếm tin chưa đọc.
-export function ChatButton({ unread, off, onClick }: { unread: number; off: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      className={`chat-fab${off ? ' chat-fab--off' : ''}`}
-      aria-label={unread > 0 ? `Chat, ${unread} tin chưa đọc` : off ? 'Chat (đang tắt)' : 'Chat'}
-      onClick={onClick}
-    >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 5h16v11H9l-5 4z" />
-        {off && <path d="M3 3l18 18" />}
-      </svg>
-      {unread > 0 && <span className="chat-fab__badge">{unread > 9 ? '9+' : unread}</span>}
-    </button>
-  )
-}
-
 // Bong bóng thoại đè lên thanh tên đối thủ vài giây (chừa đồng hồ), như lời người đó vừa nói. Nằm ngay trên thanh tên
 // nên không che bàn cờ, và cuộn trang tới đâu thấy thanh tên là thấy bong bóng.
 export function ChatBubble({ text }: { text: string }) {

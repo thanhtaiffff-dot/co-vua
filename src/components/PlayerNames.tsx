@@ -42,7 +42,7 @@ export function PlayerNames({ names, onChange }: Props) {
           className="names__swap"
           style={{ order: 1 }}
           aria-label="Đổi màu cho hai người"
-          title="Đổi màu cho hai người"
+          data-tip="Đổi màu cho hai người"
           onClick={() => onChange({ w: names.b, b: names.w })}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -50,7 +50,6 @@ export function PlayerNames({ names, onChange }: Props) {
           </svg>
         </button>
       </div>
-      <p className="card__hint">Để trống thì gọi theo màu quân. Ván sau đổi bên thì bấm nút giữa.</p>
     </div>
   )
 }

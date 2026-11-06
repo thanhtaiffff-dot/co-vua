@@ -1,6 +1,7 @@
-// Đầu trang dùng chung cho mọi trang: tên web, nút chuyển giữa chơi chung một máy và chơi online, nút Góp ý, nút chọn
-// chủ đề, nút chọn bộ tiếng và nút loa. Lựa chọn chủ đề và âm thanh lưu trong máy, trang nào cũng dùng chung.
-// Form góp ý cũng nằm ở đây (một form cho cả trang; nút Góp ý cuối trang trên điện thoại cũng mở form này).
+// Đầu trang dùng chung cho mọi trang: tên web, công tắc chuyển giữa chơi online và chơi chung một máy, rồi các nút chỉ
+// có hình (rê chuột vào mới hiện chữ): Mẹo và ghi công, Góp ý, chủ đề, bộ tiếng, loa. Lựa chọn chủ đề và âm thanh lưu
+// trong máy, trang nào cũng dùng chung. Form góp ý và bảng mẹo cũng nằm ở đây (nút cuối trang trên điện thoại cũng mở
+// hai bảng này).
 import { useEffect, useState } from 'react'
 import { FeedbackButton, FeedbackSheet } from '../feedback/FeedbackForm'
 import { navigate } from '../router'
@@ -8,13 +9,21 @@ import { playSample, playSound, selectSoundSet, setSoundEnabled, setupSound, SOU
 import { loadSaved, save } from '../storage'
 import { useTheme } from '../theme'
 import { pieceSetInfo, type PieceSetId } from '../themeCatalog'
+import { AboutButton, AboutSheet } from './AboutSheet'
 import { SoundSetPicker, type SoundMode } from './SoundSetPicker'
 import { SoundToggle } from './SoundToggle'
 import { ThemePicker } from './ThemePicker'
 
+type Mode = 'online' | 'local'
+
 type Props = {
-  switchTo: { path: string; label: string }
+  mode: Mode // trang đang mở: chơi online hay chơi chung một máy
 }
+
+const MODES: { mode: Mode; path: string; label: string }[] = [
+  { mode: 'online', path: '/online', label: 'Online' },
+  { mode: 'local', path: '/', label: 'Một máy' },
+]
 
 // Máy đã chọn sẵn một bộ tiếng khác Gỗ (từ trước khi có chủ đề) thì giữ bộ đó; còn lại tiếng theo chủ đề.
 function savedSoundMode(): SoundMode {
@@ -23,7 +32,7 @@ function savedSoundMode(): SoundMode {
   return loadSaved<unknown>('soundSet', 'wood') === 'wood' ? 'theme' : 'fixed'
 }
 
-export function TopBar({ switchTo }: Props) {
+export function TopBar({ mode }: Props) {
   const theme = useTheme()
   const [soundOn, setSoundOn] = useState<boolean>(() => loadSaved('sound', true))
   const [soundMode, setSoundMode] = useState<SoundMode>(savedSoundMode)
@@ -73,18 +82,32 @@ export function TopBar({ switchTo }: Props) {
 
   return (
     <header className="topbar">
-      <h1 className="brand">Cờ vua</h1>
-      <a
-        className="mode-link"
-        href={switchTo.path}
-        onClick={(e) => {
-          e.preventDefault()
-          navigate(switchTo.path)
-        }}
-      >
-        {switchTo.label}
-      </a>
+      <h1 className="brand">
+        <span className="brand__mark" aria-hidden="true" />
+        <span className="brand__word">Cờ vua</span>
+      </h1>
+      {/* Máy tính: công tắc hai nấc, nấc đang mở sáng lên. Điện thoại hẹp: chỉ còn nút chuyển sang chế độ kia. */}
+      <nav className="mode" aria-label="Chế độ chơi">
+        {MODES.map((item) => (
+          <a
+            key={item.mode}
+            className="mode__link"
+            href={item.path}
+            aria-current={item.mode === mode ? 'page' : undefined}
+            onClick={(e) => {
+              e.preventDefault()
+              if (item.mode !== mode) navigate(item.path)
+            }}
+          >
+            <svg className="mode__swap" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 8.5h13.5l-3.2-3.2M19 15.5H5.5l3.2 3.2" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {item.label}
+          </a>
+        ))}
+      </nav>
       <div className="topbar__tools">
+        <AboutButton place="top" />
         <FeedbackButton place="top" />
         <ThemePicker onPickPieces={pickPieces} />
         <SoundSetPicker
@@ -99,6 +122,7 @@ export function TopBar({ switchTo }: Props) {
         <SoundToggle on={soundOn} onToggle={toggleSound} />
       </div>
       <FeedbackSheet />
+      <AboutSheet />
     </header>
   )
 }

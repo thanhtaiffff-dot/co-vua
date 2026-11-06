@@ -84,7 +84,7 @@ export function SoundSetPicker({ value, mode, themeSet, themeName, soundOn, onCh
         onClick={open}
         aria-haspopup="dialog"
         aria-label={`Bộ tiếng: ${name}${mode === 'theme' ? ' (theo chủ đề)' : ''}. Bấm để đổi`}
-        title={`Bộ tiếng: ${name}${mode === 'theme' ? ' (theo chủ đề)' : ''}`}
+        data-tip={`Bộ tiếng: ${name}${mode === 'theme' ? ' (theo chủ đề)' : ''}`}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M9.2 17.4V7.6l11-2.6v10.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -92,7 +92,6 @@ export function SoundSetPicker({ value, mode, themeSet, themeName, soundOn, onCh
           <ellipse cx="6.9" cy="17.5" rx="2.6" ry="2.05" transform="rotate(-20 6.9 17.5)" fill="currentColor" />
           <ellipse cx="17.9" cy="15.3" rx="2.6" ry="2.05" transform="rotate(-20 17.9 15.3)" fill="currentColor" />
         </svg>
-        <span className="sound-set__name">{name}</span>
       </button>
 
       {/* Chạm ra vùng tối bên ngoài bảng cũng là đóng. */}

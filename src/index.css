@@ -1,60 +1,32 @@
-/* Bố cục: bàn cờ là nhân vật chính bên trái, cột điều khiển hẹp bên phải; điện thoại thì xếp dọc. */
+/* Bố cục: bàn cờ là nhân vật chính bên trái, cột điều khiển hẹp bên phải; điện thoại thì xếp dọc.
+   Kiểu Titan: như đồ công nghệ cao cấp, vỏ titan nhám, viền vát kim loại, đồng hồ số mảnh, đèn xanh băng báo tới lượt.
+   Luôn tối (nền xám không tranh màu với bàn cờ và quân 3D). Phần chất liệu (vân xước, viền vát, khay kim loại quanh
+   bàn cờ) nằm ở titan.css. */
 :root {
-  --bg: #e8eeeb;
-  --surface: #f7faf8;
-  --surface-2: #dde6e2;
-  --ink: #14201c;
-  --muted: #56675f;
-  --line: #c5d1cb;
-  --accent: #1c6aa0;
-  --accent-ink: #ffffff;
-  --accent-soft: #dbe8f2;
-  --danger: #b02a22;
-  --scrim: rgb(10 18 15 / 0.55);
-  --shadow: 0 1px 2px rgb(10 30 20 / 0.12), 0 8px 24px rgb(10 30 20 / 0.14);
+  --bg: #0d0e10;
+  --surface: #17181b;
+  --surface-2: #1f2125;
+  --surface-3: #2b2d32;
+  --ink: #eef0f3;
+  --muted: #868b94;
+  --line: #26282d;
+  --accent: #e8ebef;
+  --accent-ink: #0c0d0f;
+  --accent-soft: #26292e;
+  --led: #7dd3fc;
+  --danger: #f0857c;
+  --danger-strong: #d93a2f;
+  --scrim: rgb(0 0 0 / 0.6);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.45);
 
-  /* Màu bàn cờ nâu giữ nguyên ở cả chế độ sáng và tối */
+  /* Màu bàn cờ nâu cổ điển (chủ đề bàn cờ khác thì đổi hai màu này) */
   --board-light: #f0d9b5;
   --board-dark: #b58863;
 
-  --font-display: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif;
-  --font-body: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  --font-display: 'Geist', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Geist', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, Consolas, monospace;
 
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: #0e1412;
-    --surface: #161f1c;
-    --surface-2: #1f2b27;
-    --ink: #e6eeea;
-    --muted: #93a49c;
-    --line: #2a3833;
-    --accent: #78bbe8;
-    --accent-ink: #08202f;
-    --accent-soft: #18303e;
-    --danger: #f0857c;
-    --scrim: rgb(0 0 0 / 0.6);
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.45);
-    color-scheme: dark;
-  }
-}
-
-:root[data-theme='dark'] {
-  --bg: #0e1412;
-  --surface: #161f1c;
-  --surface-2: #1f2b27;
-  --ink: #e6eeea;
-  --muted: #93a49c;
-  --line: #2a3833;
-  --accent: #78bbe8;
-  --accent-ink: #08202f;
-  --accent-soft: #18303e;
-  --danger: #f0857c;
-  --scrim: rgb(0 0 0 / 0.6);
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.45);
   color-scheme: dark;
 }
 
@@ -91,23 +63,100 @@ body {
 .topbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
   max-width: 1040px;
+  min-height: 48px;
   margin-inline: auto;
 }
 
+/* Tên web: vòng titan nhỏ (chỗ của logo sau này) và chữ in hoa giãn rộng */
 .brand {
   flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 1.6rem;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
+  font-weight: 500;
+  font-size: 0.95rem;
+  line-height: 1;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-/* Nút chọn chủ đề, chọn bộ tiếng và nút loa, nằm bên phải đầu trang; điện thoại hẹp thì dòng chữ bên cạnh tự xuống hàng */
+.brand__mark {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, var(--bg) 0 44%, transparent 46%),
+    conic-gradient(from 200deg, #f4f6f8, #7d838c, #2a2c31, #c9cdd3, #f4f6f8);
+}
+
+/* Công tắc Online | Một máy: nấc đang mở nổi lên. Điện thoại hẹp chỉ còn nút chuyển sang chế độ kia. */
+.mode {
+  flex: none;
+  display: flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.mode__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 120ms ease;
+}
+
+.mode__link:hover {
+  color: var(--ink);
+}
+
+.mode__link[aria-current='page'] {
+  background: var(--surface-3);
+  color: var(--ink);
+  cursor: default;
+}
+
+.mode__swap {
+  display: none;
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+.mode__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 599px) {
+  .mode__link[aria-current='page'] {
+    display: none;
+  }
+
+  .mode__link {
+    padding: 5px 11px 5px 9px;
+    color: var(--ink);
+  }
+
+  .mode__swap {
+    display: block;
+  }
+}
+
+/* Các nút chỉ có hình ở bên phải đầu trang */
 .topbar__tools {
   margin-left: auto;
   flex: none;
@@ -116,67 +165,68 @@ body {
 }
 
 .icon-btn {
+  position: relative;
   flex: none;
   display: grid;
   place-items: center;
   width: 40px;
   height: 40px;
   padding: 0;
-  border-radius: 10px;
-  border: 1px solid var(--line);
+  border-radius: 50%;
+  border: 0;
   background: var(--surface);
-  color: var(--ink);
+  color: #cfd3d9;
+  font: inherit;
   cursor: pointer;
   transition:
-    background-color 120ms ease,
-    border-color 120ms ease;
+    color 120ms ease,
+    background-color 120ms ease;
 }
 
 .icon-btn:hover {
-  border-color: var(--accent);
+  color: var(--ink);
 }
 
 .icon-btn svg {
-  width: 22px;
-  height: 22px;
+  width: 21px;
+  height: 21px;
 }
 
 .icon-btn--off {
   color: var(--muted);
-  background: var(--surface-2);
-}
-
-/* Nút mở bảng chọn chủ đề, bảng chọn bộ tiếng. Màn hình rộng thì hiện thêm chữ bên cạnh hình. */
-.sound-set,
-.theme-btn {
-  width: auto;
-  min-width: 40px;
-  grid-auto-flow: column;
-  gap: 6px;
-  padding-inline: 9px;
-  font: inherit;
-}
-
-.sound-set__name,
-.theme-btn__name {
-  display: none;
-  font-size: 0.85rem;
-  font-weight: 600;
 }
 
 .theme-btn[aria-expanded='true'] {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  color: var(--ink);
+  box-shadow: 0 0 0 1.5px var(--led);
 }
 
-/* Điện thoại hẹp (360px): thu gọn đầu trang cho vừa ba nút bên phải */
-@media (max-width: 389px) {
+/* Nút Mẹo và ghi công, nút Góp ý: đầu trang chỉ đủ chỗ từ 600px trở lên; điện thoại thì nằm cuối trang */
+.about-btn--top {
+  display: none;
+}
+
+@media (min-width: 600px) {
+  .about-btn--top {
+    display: grid;
+  }
+}
+
+/* Điện thoại: thu gọn đầu trang cho vừa tên web, nút chuyển chế độ và ba nút bên phải */
+@media (max-width: 599px) {
   .topbar {
-    gap: 8px;
+    gap: 10px;
   }
 
   .brand {
-    font-size: 1.35rem;
+    gap: 8px;
+    font-size: 0.82rem;
+    letter-spacing: 0.24em;
+  }
+
+  .brand__mark {
+    width: 24px;
+    height: 24px;
   }
 
   .topbar__tools {
@@ -184,26 +234,118 @@ body {
   }
 
   .topbar .icon-btn {
-    width: 38px;
-    min-width: 38px;
-    padding-inline: 0;
-  }
-
-  .topbar .mode-link {
-    padding-inline: 10px;
+    width: 36px;
+    height: 36px;
   }
 }
 
-@media (min-width: 560px) {
-  .sound-set,
-  .theme-btn {
-    padding-inline: 10px 12px;
+/* Điện thoại hẹp (360px) */
+@media (max-width: 389px) {
+  .topbar {
+    gap: 8px;
   }
 
-  .sound-set__name,
-  .theme-btn__name {
-    display: inline;
+  .brand {
+    gap: 7px;
+    font-size: 0.76rem;
+    letter-spacing: 0.2em;
   }
+
+  .brand__mark {
+    width: 22px;
+    height: 22px;
+  }
+
+  .topbar .icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .mode__link {
+    padding-inline: 8px 10px;
+  }
+
+  .mode__swap {
+    display: none;
+  }
+}
+
+/* ---------- Bong bóng chữ của nút chỉ có hình ---------- */
+/* Nút có data-tip: rê chuột vào (hay bấm Tab tới) thì hiện bong bóng chữ phía trên nút (nút ở đầu trang thì phía dưới).
+   Lớp tip--show: hiện luôn (vd "Bấm lần nữa để đầu hàng"), cả trên điện thoại. */
+[data-tip] {
+  position: relative;
+}
+
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  z-index: 30;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 600 0.78rem/1.25 var(--font-body);
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.45);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.topbar [data-tip]::after {
+  top: calc(100% + 9px);
+  bottom: auto;
+  transform: translate(-50%, -4px);
+}
+
+/* Nút sát mép phải: bong bóng canh phải cho khỏi tràn ra ngoài màn hình */
+.topbar__tools > [data-tip]:last-child::after,
+.actions > [data-tip]:last-child::after {
+  left: auto;
+  right: 0;
+  transform: translateY(4px);
+}
+
+.topbar__tools > [data-tip]:last-child::after {
+  transform: translateY(-4px);
+}
+
+@media (hover: hover) {
+  [data-tip]:hover::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+[data-tip]:focus-visible::after,
+.tip--show[data-tip]::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (hover: hover) {
+  .topbar__tools > [data-tip]:last-child:hover::after,
+  .actions > [data-tip]:last-child:hover::after {
+    transform: none;
+  }
+}
+
+.topbar__tools > [data-tip]:last-child:focus-visible::after,
+.actions > [data-tip]:last-child:is(:focus-visible, .tip--show)::after {
+  transform: none;
+}
+
+.act--danger[data-tip]::after {
+  background: var(--danger-strong);
+  color: #fff;
 }
 
 /* ---------- Bảng chọn bộ tiếng ---------- */
@@ -1441,23 +1583,59 @@ body:has(.sound-sheet[open]) {
   min-width: 0;
 }
 
+/* Dòng báo lượt: đèn xanh nhỏ và "Tới lượt bạn", bên phải là thời gian ván (chơi một máy). Không đóng khung cho gọn.
+   Điện thoại: đèn trên đồng hồ đã báo lượt, nên dòng này chỉ hiện khi có chuyện cần nói (bị chiếu, đang xem lại...). */
 .status {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 4px;
+  padding: 2px 4px;
 }
 
 .status__text {
-  font-weight: 700;
-  font-size: 1.05rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.status__text:not(:empty)::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--led);
+  box-shadow: 0 0 8px var(--led);
 }
 
 .status--check .status__text {
   color: var(--danger);
+}
+
+.status--check .status__text::before {
+  background: var(--danger-strong);
+  box-shadow: 0 0 8px var(--danger-strong);
+}
+
+.status__meta {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.status__hint {
+  flex-basis: 100%;
+}
+
+@media (max-width: 899px) {
+  .status--plain {
+    display: none;
+  }
 }
 
 .status__hint {
@@ -1477,11 +1655,6 @@ body:has(.sound-sheet[open]) {
   font-weight: 700;
 }
 
-.status__clock {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
 
 /* ---------- Chọn thời gian ---------- */
 .tc {
@@ -1555,11 +1728,87 @@ body:has(.sound-sheet[open]) {
   color: var(--muted);
 }
 
-.controls {
+/* ---------- Hàng nút việc trong ván (chỉ có hình) ---------- */
+/* Đi lại, xin hòa, đầu hàng, ván mới, chat: nút dài bằng nhau. Máy tính: dưới cùng cột bên phải. Điện thoại: ngay dưới
+   dải nước đi. Hết ván (chơi một máy): nút chữ "Ván mới" rộng gấp đôi. */
+.actions {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
   gap: 8px;
+}
+
+.actions__wide {
+  grid-column: span 2;
+}
+
+.act {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  color: #d7dbe0;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.act svg {
+  width: 21px;
+  height: 21px;
+}
+
+.act__half {
+  font: 700 1.2rem/1 var(--font-body);
+}
+
+.act:hover:not(:disabled) {
+  color: #fff;
+}
+
+.act:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Lời xin đang chờ trả lời: nút sáng đèn xanh */
+.act--on,
+.act--on:disabled {
+  opacity: 1;
+  color: var(--led);
+}
+
+/* Đang chờ bấm lần nữa (đầu hàng, ván mới): nút đỏ */
+.act--danger,
+.act--danger:hover:not(:disabled) {
+  background: var(--danger-strong);
+  color: #fff;
+}
+
+.act__badge {
+  position: absolute;
+  top: 4px;
+  right: calc(50% - 22px);
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e5484d;
+  color: #fff;
+  font: 700 0.66rem/17px var(--font-body);
+  text-align: center;
+}
+
+.act:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .btn {
@@ -1731,29 +1980,23 @@ body:has(.sound-sheet[open]) {
   overflow: hidden;
 }
 
-.moves__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 8px 8px 14px;
-  border-bottom: 1px solid var(--line);
-}
-
-.moves__title {
-  font-weight: 700;
-  font-size: 0.9rem;
-}
-
+/* Hàng nút về đầu, lùi, tiến, về cuối: bốn nút dài bằng nhau, nằm trên cùng */
 .moves__nav {
-  display: flex;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px;
+}
+
+.moves__nav .nav-btn {
+  width: auto;
+  height: 30px;
 }
 
 .moves__scroll {
   max-height: 260px;
   overflow-y: auto;
-  padding: 6px 4px;
+  padding: 2px 4px 8px;
 }
 
 .moves__empty {
@@ -1778,10 +2021,6 @@ body:has(.sound-sheet[open]) {
   gap: 4px;
   padding: 1px 6px;
   border-radius: 6px;
-}
-
-.moves__row:nth-child(even) {
-  background: var(--surface-2);
 }
 
 .moves__number {
@@ -1827,6 +2066,42 @@ body:has(.sound-sheet[open]) {
 .moves__move--on .moves__time {
   color: inherit;
   opacity: 0.85;
+}
+
+/* Hình quân nhỏ thay chữ N, B, R, Q, K trong nước đi (xem San.tsx): bóng quân cburnett tô bằng màu chữ, chữ gốc đẩy ra
+   ngoài khung (vẫn đọc và chép được). */
+.fig {
+  display: inline-block;
+  width: 1.12em;
+  height: 1.12em;
+  margin-right: 0.04em;
+  vertical-align: -0.2em;
+  overflow: hidden;
+  text-indent: 2em;
+  white-space: nowrap;
+  background: currentColor;
+  -webkit-mask: var(--fig) center / contain no-repeat;
+  mask: var(--fig) center / contain no-repeat;
+}
+
+.fig--k {
+  --fig: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMi41IDExLjYzVjYiIHN0cm9rZS1saW5lam9pbj0ibWl0ZXIiLz48cGF0aCBkPSJNMjIuNSAyNXM0LjUtNy41IDMtMTAuNWMwIDAtMS0yLjUtMy0yLjVzLTMgMi41LTMgMi41Yy0xLjUgMyAzIDEwLjUgMyAxMC41IiBmaWxsPSIjMDAwIiBzdHJva2UtbGluZWNhcD0iYnV0dCIgc3Ryb2tlLWxpbmVqb2luPSJtaXRlciIvPjxwYXRoIGQ9Ik0xMS41IDM3YzUuNSAzLjUgMTUuNSAzLjUgMjEgMHYtN3M5LTQuNSA2LTEwLjVjLTQtNi41LTEzLjUtMy41LTE2IDRWMjd2LTMuNWMtMy41LTcuNS0xMy0xMC41LTE2LTQtMyA2IDUgMTAgNSAxMFYzN3oiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNMjAgOGg1IiBzdHJva2UtbGluZWpvaW49Im1pdGVyIi8+PHBhdGggZD0iTTMyIDI5LjVzOC41LTQgNi4wMy05LjY1QzM0LjE1IDE0IDI1IDE4IDIyLjUgMjQuNWwuMDEgMi4xLS4wMS0yLjFDMjAgMTggOS45MDYgMTQgNi45OTcgMTkuODVjLTIuNDk3IDUuNjUgNC44NTMgOSA0Ljg1MyA5IiBzdHJva2U9IiNlY2VjZWMiLz48cGF0aCBkPSJNMTEuNSAzMGM1LjUtMyAxNS41LTMgMjEgMG0tMjEgMy41YzUuNS0zIDE1LjUtMyAyMSAwbS0yMSAzLjVjNS41LTMgMTUuNS0zIDIxIDAiIHN0cm9rZT0iI2VjZWNlYyIvPjwvZz48L3N2Zz4=");
+}
+
+.fig--q {
+  --fig: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxnIHN0cm9rZT0ibm9uZSI+PGNpcmNsZSBjeD0iNiIgY3k9IjEyIiByPSIyLjc1Ii8+PGNpcmNsZSBjeD0iMTQiIGN5PSI5IiByPSIyLjc1Ii8+PGNpcmNsZSBjeD0iMjIuNSIgY3k9IjgiIHI9IjIuNzUiLz48Y2lyY2xlIGN4PSIzMSIgY3k9IjkiIHI9IjIuNzUiLz48Y2lyY2xlIGN4PSIzOSIgY3k9IjEyIiByPSIyLjc1Ii8+PC9nPjxwYXRoIGQ9Ik05IDI2YzguNS0xLjUgMjEtMS41IDI3IDBsMi41LTEyLjVMMzEgMjVsLS4zLTE0LjEtNS4yIDEzLjYtMy0xNC41LTMgMTQuNS01LjItMTMuNkwxNCAyNSA2LjUgMTMuNSA5IDI2eiIgc3Ryb2tlLWxpbmVjYXA9ImJ1dHQiLz48cGF0aCBkPSJNOSAyNmMwIDIgMS41IDIgMi41IDQgMSAxLjUgMSAxIC41IDMuNS0xLjUgMS0xLjUgMi41LTEuNSAyLjUtMS41IDEuNS41IDIuNS41IDIuNSA2LjUgMSAxNi41IDEgMjMgMCAwIDAgMS41LTEgMC0yLjUgMCAwIC41LTEuNS0xLTIuNS0uNS0yLjUtLjUtMiAuNS0zLjUgMS0yIDIuNS0yIDIuNS00LTguNS0xLjUtMTguNS0xLjUtMjcgMHoiIHN0cm9rZS1saW5lY2FwPSJidXR0Ii8+PHBhdGggZD0iTTExIDM4LjVhMzUgMzUgMSAwIDAgMjMgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9ImJ1dHQiLz48cGF0aCBkPSJNMTEgMjlhMzUgMzUgMSAwIDEgMjMgMG0tMjEuNSAyLjVoMjBtLTIxIDNhMzUgMzUgMSAwIDAgMjIgMG0tMjMgM2EzNSAzNSAxIDAgMCAyNCAwIiBmaWxsPSJub25lIiBzdHJva2U9IiNlY2VjZWMiLz48L2c+PC9zdmc+");
+}
+
+.fig--r {
+  --fig: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik05IDM5aDI3di0zSDl2M3ptMy41LTdsMS41LTIuNWgxN2wxLjUgMi41aC0yMHptLS41IDR2LTRoMjF2NEgxMnoiIHN0cm9rZS1saW5lY2FwPSJidXR0Ii8+PHBhdGggZD0iTTE0IDI5LjV2LTEzaDE3djEzSDE0eiIgc3Ryb2tlLWxpbmVjYXA9ImJ1dHQiIHN0cm9rZS1saW5lam9pbj0ibWl0ZXIiLz48cGF0aCBkPSJNMTQgMTYuNUwxMSAxNGgyM2wtMyAyLjVIMTR6TTExIDE0VjloNHYyaDVWOWg1djJoNVY5aDR2NUgxMXoiIHN0cm9rZS1saW5lY2FwPSJidXR0Ii8+PHBhdGggZD0iTTEyIDM1LjVoMjFtLTIwLTRoMTltLTE4LTJoMTdtLTE3LTEzaDE3TTExIDE0aDIzIiBmaWxsPSJub25lIiBzdHJva2U9IiNlY2VjZWMiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWxpbmVqb2luPSJtaXRlciIvPjwvZz48L3N2Zz4=");
+}
+
+.fig--b {
+  --fig: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxnIGZpbGw9IiMwMDAiIHN0cm9rZS1saW5lY2FwPSJidXR0Ij48cGF0aCBkPSJNOSAzNmMzLjM5LS45NyAxMC4xMS40MyAxMy41LTIgMy4zOSAyLjQzIDEwLjExIDEuMDMgMTMuNSAyIDAgMCAxLjY1LjU0IDMgMi0uNjguOTctMS42NS45OS0zIC41LTMuMzktLjk3LTEwLjExLjQ2LTEzLjUtMS0zLjM5IDEuNDYtMTAuMTEuMDMtMTMuNSAxLTEuMzU0LjQ5LTIuMzIzLjQ3LTMtLjUgMS4zNTQtMS45NCAzLTIgMy0yeiIvPjxwYXRoIGQ9Ik0xNSAzMmMyLjUgMi41IDEyLjUgMi41IDE1IDAgLjUtMS41IDAtMiAwLTIgMC0yLjUtMi41LTQtMi41LTQgNS41LTEuNSA2LTExLjUtNS0xNS41LTExIDQtMTAuNSAxNC01IDE1LjUgMCAwLTIuNSAxLjUtMi41IDQgMCAwLS41LjUgMCAyeiIvPjxwYXRoIGQ9Ik0yNSA4YTIuNSAyLjUgMCAxIDEtNSAwIDIuNSAyLjUgMCAxIDEgNSAweiIvPjwvZz48cGF0aCBkPSJNMTcuNSAyNmgxME0xNSAzMGgxNW0tNy41LTE0LjV2NU0yMCAxOGg1IiBzdHJva2U9IiNlY2VjZWMiIHN0cm9rZS1saW5lam9pbj0ibWl0ZXIiLz48L2c+PC9zdmc+");
+}
+
+.fig--n {
+  --fig: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMiAxMGMxMC41IDEgMTYuNSA4IDE2IDI5SDE1YzAtOSAxMC02LjUgOC0yMSIgZmlsbD0iIzAwMCIvPjxwYXRoIGQ9Ik0yNCAxOGMuMzggMi45MS01LjU1IDcuMzctOCA5LTMgMi0yLjgyIDQuMzQtNSA0LTEuMDQyLS45NCAxLjQxLTMuMDQgMC0zLTEgMCAuMTkgMS4yMy0xIDItMSAwLTQuMDAzIDEtNC00IDAtMiA2LTEyIDYtMTJzMS44OS0xLjkgMi0zLjVjLS43My0uOTk0LS41LTItLjUtMyAxLTEgMyAyLjUgMyAyLjVoMnMuNzgtMS45OTIgMi41LTNjMSAwIDEgMyAxIDMiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNOS41IDI1LjVhLjUuNSAwIDEgMS0xIDAgLjUuNSAwIDEgMSAxIDB6bTUuNDMzLTkuNzVhLjUgMS41IDMwIDEgMS0uODY2LS41LjUgMS41IDMwIDEgMSAuODY2LjV6IiBmaWxsPSIjZWNlY2VjIiBzdHJva2U9IiNlY2VjZWMiLz48cGF0aCBkPSJNMjQuNTUgMTAuNGwtLjQ1IDEuNDUuNS4xNWMzLjE1IDEgNS42NSAyLjQ5IDcuOSA2Ljc1UzM1Ljc1IDI5LjA2IDM1LjI1IDM5bC0uMDUuNWgyLjI1bC4wNS0uNWMuNS0xMC4wNi0uODgtMTYuODUtMy4yNS0yMS4zNC0yLjM3LTQuNDktNS43OS02LjY0LTkuMTktNy4xNmwtLjUxLS4xeiIgZmlsbD0iI2VjZWNlYyIgc3Ryb2tlPSJub25lIi8+PC9nPjwvc3ZnPg==");
 }
 
 /* ---------- Dải nước đi ngay dưới bàn cờ (điện thoại) ---------- */
@@ -2266,37 +2541,15 @@ span.think__slot {
 .think__slot--w::before {
   bottom: 0;
   border-radius: 4px 4px 0 0;
-  background: #f1ede4;
-  border: 1px solid #56675f;
-  border-bottom: none;
+  background: #e8ebef;
 }
 
 .think__slot--b::before {
   top: 0;
   border-radius: 0 0 4px 4px;
-  background: #2c2f2d;
-}
-
-:root[data-theme='dark'] .think__slot--w::before {
-  border-color: transparent;
-}
-
-:root[data-theme='dark'] .think__slot--b::before {
-  background: #3d4642;
-  border: 1px solid #93a49c;
+  background: #3a3d44;
+  border: 1px solid #6b7079;
   border-top: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .think__slot--w::before {
-    border-color: transparent;
-  }
-
-  :root:not([data-theme='light']) .think__slot--b::before {
-    background: #3d4642;
-    border: 1px solid #93a49c;
-    border-top: none;
-  }
 }
 
 .think__slot:hover::before,

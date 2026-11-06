@@ -75,7 +75,7 @@ export function ThemePicker({ onPickPieces }: Props) {
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={`Chủ đề: ${summary}. Bấm để đổi`}
-        title="Chủ đề quân và bàn cờ"
+        data-tip="Chủ đề quân và bàn cờ"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -89,7 +89,6 @@ export function ThemePicker({ onPickPieces }: Props) {
           <circle cx="9.6" cy="7.6" r="1.45" fill="currentColor" />
           <circle cx="14.4" cy="7.4" r="1.45" fill="currentColor" />
         </svg>
-        <span className="theme-btn__name">Chủ đề</span>
       </button>
 
       <dialog

@@ -1,28 +1,4 @@
-/* Giao diện riêng của phần chơi online và nút chuyển chế độ ở đầu trang. Dùng chung màu (token) của index.css. */
-
-/* Nút chuyển giữa chơi chung một máy và chơi online, nằm cạnh tên web */
-.mode-link {
-  flex: none;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: border-color 120ms ease;
-}
-
-.mode-link:hover {
-  border-color: var(--accent);
-}
-
-.mode-link:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+/* Giao diện riêng của phần chơi online. Dùng chung màu (token) của index.css. */
 
 /* Tên dài thì cắt bớt, không đẩy đồng hồ ra ngoài */
 .player__name {
@@ -326,24 +302,121 @@
   font-weight: 600;
 }
 
-.match {
-  margin: 6px 0 0;
-  padding-top: 6px;
-  border-top: 1px solid var(--line);
-  font-size: 0.9rem;
+/* ---------- Tỉ số các ván trong phòng ---------- */
+/* Máy tính: thẻ đầu cột bên phải, như bảng tỉ số. Điện thoại: một dòng trên thanh tên phía trên (từ ván thứ hai). */
+.scorecard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.scorecard p {
+  margin: 0;
+}
+
+.scorecard__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
-/* Tỉ số đứng đầu thẻ mời đấu tiếp, hay một mình trong thẻ (người xem): khỏi đường kẻ phía trên */
-.match:first-child {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: none;
+.led {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--led);
+  box-shadow: 0 0 8px var(--led);
 }
 
-.match b {
-  color: var(--ink);
+.scorecard__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.scorecard__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.scorecard__name:last-child {
+  text-align: right;
+}
+
+.scorecard__num {
+  padding: 0 8px;
   font-family: var(--font-mono);
+  font-size: 2rem;
+  font-weight: 300;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.scorecard__dash {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 300;
+}
+
+.scoreline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0 2px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.scoreline__meta {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.scoreline__control {
+  margin-left: auto;
+}
+
+.scoreline__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scoreline__num {
+  flex: none;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 0.95rem;
+}
+
+/* Máy tính: tỉ số nằm ở thẻ đầu cột bên phải; điện thoại: dòng trên thanh tên */
+@media (min-width: 900px) {
+  .scoreline {
+    display: none;
+  }
+}
+
+@media (max-width: 899px) {
+  .scorecard {
+    display: none;
+  }
 }
 
 .offer {
@@ -375,16 +448,4 @@
 
 .offer__actions .btn {
   flex: 1 1 120px;
-}
-
-/* Trong ván: ba nút xin đi lại, xin hòa, đầu hàng (lật bàn nằm ở cột nút cạnh bàn cờ) */
-.controls--online .btn {
-  padding-inline: 4px;
-  font-size: 0.9rem;
-}
-
-.online-tip {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--muted);
 }

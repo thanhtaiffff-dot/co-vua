@@ -1,12 +1,16 @@
-// Thanh nút chỉnh bàn cờ, như chess.com: Lật bàn, Phóng to, Thu nhỏ, Toàn màn hình. Máy tính: cột dọc sát mép phải
-// bàn cờ. Điện thoại: hàng ngang dưới bàn cờ, không có Phóng to, Thu nhỏ vì bàn cờ đã rộng hết màn hình.
+// Thanh nút chỉnh bàn cờ, như chess.com: (Tự xoay bàn theo lượt,) Lật bàn, Phóng to, Thu nhỏ, Toàn màn hình. Nút chỉ
+// có hình, rê chuột vào mới hiện chữ. Máy tính: cột dọc sát mép phải bàn cờ. Điện thoại: hàng ngang dưới bàn cờ, không
+// có Phóng to, Thu nhỏ vì bàn cờ đã rộng hết màn hình.
 import type { ReactNode } from 'react'
 import { useBoardZoom, useFullscreen, zoomBoard, ZOOM_MAX, ZOOM_MIN } from '../boardView'
+import { ACTION_ICONS } from './ActionButton'
 
 type Props = {
   onFlip?: () => void // không có thì không hiện nút Lật bàn
   flipDisabled?: boolean
   flipTitle?: string // lời giải thích khi nút Lật bàn bị khoá
+  autoFlip?: boolean // chơi chung một máy: đang bật tự xoay bàn theo lượt
+  onAutoFlip?: () => void // không có thì không hiện nút Tự xoay bàn
 }
 
 const ICONS = {
@@ -25,6 +29,7 @@ const ICONS = {
   ),
   full: <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />,
   exit: <path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" />,
+  autoFlip: ACTION_ICONS.autoFlip,
 } satisfies Record<string, ReactNode>
 
 function Tool({
@@ -33,6 +38,7 @@ function Tool({
   onClick,
   disabled,
   title,
+  pressed,
   className = '',
 }: {
   icon: keyof typeof ICONS
@@ -40,22 +46,40 @@ function Tool({
   onClick: () => void
   disabled?: boolean
   title?: string
+  pressed?: boolean // nút bật/tắt: đang bật thì sáng đèn
   className?: string
 }) {
   return (
-    <button type="button" className={`board-tool ${className}`} aria-label={label} title={title ?? label} disabled={disabled} onClick={onClick}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <button
+      type="button"
+      className={`board-tool${pressed ? ' board-tool--on' : ''} ${className}`}
+      aria-label={label}
+      aria-pressed={pressed}
+      data-tip={title ?? label}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         {ICONS[icon]}
       </svg>
     </button>
   )
 }
 
-export function BoardTools({ onFlip, flipDisabled, flipTitle }: Props) {
+export function BoardTools({ onFlip, flipDisabled, flipTitle, autoFlip, onAutoFlip }: Props) {
   const zoom = useBoardZoom()
   const fullscreen = useFullscreen()
   return (
     <div className="board-tools" role="toolbar" aria-label="Chỉnh bàn cờ">
+      {onAutoFlip && (
+        <Tool
+          icon="autoFlip"
+          label="Tự xoay bàn theo lượt"
+          title={autoFlip ? 'Đang tự xoay bàn theo lượt' : 'Tự xoay bàn theo lượt (hai người chung một máy)'}
+          pressed={Boolean(autoFlip)}
+          onClick={onAutoFlip}
+        />
+      )}
       {onFlip && <Tool icon="flip" label="Lật bàn" onClick={onFlip} disabled={flipDisabled} title={flipDisabled ? flipTitle : undefined} />}
       <Tool icon="bigger" label="Phóng to bàn cờ" className="board-tool--zoom" onClick={() => zoomBoard(1)} disabled={zoom >= ZOOM_MAX} />
       <Tool icon="smaller" label="Thu nhỏ bàn cờ" className="board-tool--zoom" onClick={() => zoomBoard(-1)} disabled={zoom <= ZOOM_MIN} />

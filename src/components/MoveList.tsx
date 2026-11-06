@@ -1,8 +1,9 @@
-// Các nước đã đi, viết kiểu ký hiệu cờ (e4, Nf3, O-O…), kèm thời gian nghĩ mỗi nước. Bấm một nước để xem lại thế cờ
-// lúc đó. Máy tính: cột dọc bên phải bàn cờ, có hàng nút về đầu, lùi, tiến, về cuối. Điện thoại: một dải ngang ngay dưới
-// bàn cờ (vuốt ngang được), để vừa bấm vừa thấy bàn cờ.
+// Các nước đã đi, viết kiểu ký hiệu cờ (e4, Nf3, O-O…, chữ chỉ quân vẽ thành hình quân nhỏ), kèm thời gian nghĩ mỗi
+// nước. Bấm một nước để xem lại thế cờ lúc đó. Máy tính: cột dọc bên phải bàn cờ, hàng nút về đầu, lùi, tiến, về cuối
+// nằm trên cùng. Điện thoại: một dải ngang ngay dưới bàn cờ (vuốt ngang được), để vừa bấm vừa thấy bàn cờ.
 import { useEffect, useRef, type ReactNode } from 'react'
 import { formatThink } from '../game/clock'
+import { San } from './San'
 
 type Props = {
   sans: string[]
@@ -60,7 +61,9 @@ function Move({ ply, san, time, shown, onGo, prefix }: { ply: number; san: strin
   const on = ply === shown
   return (
     <button type="button" className={`${prefix}__move${on ? ` ${prefix}__move--on` : ''}`} aria-current={on} onClick={() => onGo(ply)}>
-      <span className={`${prefix}__san`}>{san}</span>
+      <span className={`${prefix}__san`}>
+        <San san={san} />
+      </span>
       <span className={`${prefix}__time`}>{time == null ? '' : formatThink(time)}</span>
     </button>
   )
@@ -74,14 +77,11 @@ export function MoveList({ sans, times, shown, onGo }: Props) {
 
   return (
     <section className="moves" aria-label="Các nước đã đi">
-      <div className="moves__head">
-        <span className="moves__title">{shown < total ? `Nước ${shown}/${total}` : 'Nước đi'}</span>
-        <div className="moves__nav">
-          <NavButton icon="first" label="Về lúc bắt đầu ván" disabled={shown === 0} onClick={() => onGo(0)} />
-          <NavButton icon="prev" label="Lùi một nước (phím ←)" disabled={shown === 0} onClick={() => onGo(shown - 1)} />
-          <NavButton icon="next" label="Tiến một nước (phím →)" disabled={shown === total} onClick={() => onGo(shown + 1)} />
-          <NavButton icon="last" label="Về thế cờ hiện tại" disabled={shown === total} onClick={() => onGo(total)} className={shown < total ? 'nav-btn--live' : ''} />
-        </div>
+      <div className="moves__nav">
+        <NavButton icon="first" label="Về lúc bắt đầu ván" disabled={shown === 0} onClick={() => onGo(0)} />
+        <NavButton icon="prev" label="Lùi một nước (phím ←)" disabled={shown === 0} onClick={() => onGo(shown - 1)} />
+        <NavButton icon="next" label="Tiến một nước (phím →)" disabled={shown === total} onClick={() => onGo(shown + 1)} />
+        <NavButton icon="last" label="Về thế cờ hiện tại" disabled={shown === total} onClick={() => onGo(total)} className={shown < total ? 'nav-btn--live' : ''} />
       </div>
       <div className="moves__scroll" ref={box}>
         {total === 0 && <p className="moves__empty">Chưa có nước nào. Trắng đi trước.</p>}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Color, PieceSymbol, Square } from 'chess.js'
 import type { Config } from '@lichess-org/chessground/config'
 import type { Key } from '@lichess-org/chessground/types'
+import { ActionButton } from './components/ActionButton'
 import { Board } from './components/Board'
 import { BoardTools } from './components/BoardTools'
 import { MoveList, MoveStrip } from './components/MoveList'
@@ -13,7 +14,7 @@ import { TimeControlPicker } from './components/TimeControlPicker'
 import { TopBar } from './components/TopBar'
 import { describeGame, useFeedbackGame } from './feedback/context'
 import { PageFoot } from './feedback/FeedbackForm'
-import { describeControl, flagTime, lastTimes, lowTime, newClock, recordMove, restoreClock, undoMove, type ClockState } from './game/clock'
+import { controlLabel, flagTime, lastTimes, lowTime, newClock, recordMove, restoreClock, undoMove, type ClockState } from './game/clock'
 import {
   capturedPieces,
   describeMove,
@@ -66,6 +67,7 @@ export default function App() {
   const now = useNow(flagAt)
   const status = flagAt !== null && now >= flagAt ? timeoutStatus(chess, turn) : boardStatus
   const over = status.kind !== 'playing'
+  const check = status.kind === 'playing' && status.check
   const picking = promotion !== null && !over
   const boardSide = autoFlip ? SIDE[turn] : orientation
   const bottom: Color = boardSide === 'white' ? 'w' : 'b'
@@ -216,7 +218,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <TopBar switchTo={{ path: '/online', label: 'Chơi online' }} />
+      <TopBar mode="local" />
 
       <main className="table">
         <section className="board-col">
@@ -247,6 +249,8 @@ export default function App() {
           <div className="board-under">
             <MoveStrip sans={sans} times={times} shown={review.shown} onGo={review.go} />
             <BoardTools
+              autoFlip={autoFlip}
+              onAutoFlip={() => setAutoFlip((on) => !on)}
               onFlip={() => setOrientation((o) => (o === 'white' ? 'black' : 'white'))}
               flipDisabled={autoFlip}
               flipTitle="Đang bật tự xoay bàn theo lượt"
@@ -268,8 +272,12 @@ export default function App() {
               onGo={goTo}
             />
           ) : (
-            <div className={`status${status.kind === 'playing' && status.check ? ' status--check' : ''}`} role="status">
+            <div
+              className={`status${check ? ' status--check' : ''}${check || review.reviewing ? '' : ' status--plain'}`}
+              role="status"
+            >
               <span className="status__text">{statusText(status, name)}</span>
+              {clock.control && <span className="status__meta">{controlLabel(clock.control)}</span>}
               {review.reviewing && (
                 <span className="status__hint">
                   Đang xem lại thế cờ cũ.{' '}
@@ -278,7 +286,6 @@ export default function App() {
                   </button>
                 </span>
               )}
-              {clock.control && moves.length > 0 && <span className="status__clock">{describeControl(clock.control)}</span>}
             </div>
           )}
 
@@ -289,27 +296,25 @@ export default function App() {
             </>
           )}
 
-          <div className="controls">
-            <button type="button" className="btn" onClick={undo} disabled={moves.length === 0}>
-              Đi lại
-            </button>
-            <button type="button" className={`btn btn--primary${confirmNew ? ' btn--confirm' : ''}`} onClick={newGame}>
-              {confirmNew ? 'Bấm lần nữa' : 'Ván mới'}
-            </button>
+          {moves.length > 0 && <MoveList sans={sans} times={times} shown={review.shown} onGo={review.go} />}
+
+          {/* Nút chỉ có hình, rê chuột vào mới hiện chữ. Hết ván thì Ván mới là nút chữ to cho dễ thấy. */}
+          <div className="actions">
+            <ActionButton icon="undo" label="Đi lại" onClick={undo} disabled={moves.length === 0} />
+            {over ? (
+              <button type="button" className="btn btn--primary actions__wide" onClick={newGame}>
+                Ván mới
+              </button>
+            ) : (
+              <ActionButton
+                icon="newGame"
+                label={confirmNew ? 'Bấm lần nữa để bắt đầu ván mới' : 'Ván mới'}
+                danger={confirmNew}
+                showTip={confirmNew}
+                onClick={newGame}
+              />
+            )}
           </div>
-
-          <label className="switch">
-            <input id="auto-flip" type="checkbox" checked={autoFlip} onChange={(e) => setAutoFlip(e.target.checked)} />
-            <span className="switch__track" aria-hidden="true" />
-            <span>Tự xoay bàn theo lượt (hai người chung một điện thoại)</span>
-          </label>
-
-          <MoveList sans={sans} times={times} shown={review.shown} onGo={review.go} />
-
-          <p className="credits">
-            Luật cờ: chess.js · Bàn cờ: chessground của lichess · Quân cờ: bộ cburnett của Colin M.L. Burnett (GPL), quân 2D chất liệu dựng từ
-            bộ này; quân 3D, bàn chủ đề tự dựng · Tiếng thu thật: Kenney (CC0)
-          </p>
         </aside>
       </main>
       <PageFoot />

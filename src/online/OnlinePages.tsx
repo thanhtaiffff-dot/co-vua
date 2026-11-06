@@ -26,7 +26,7 @@ const COLOR_NAME: Record<Color, string> = { w: 'Trắng', b: 'Đen' }
 function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="app">
-      <TopBar switchTo={{ path: '/', label: 'Chơi một máy' }} />
+      <TopBar mode="online" />
       {children}
       <PageFoot />
     </div>
@@ -129,7 +129,6 @@ export function CreatePage({ backend }: { backend: Backend }) {
       <Lobby side={color === 'b' ? 'b' : 'w'}>
         <div className="card">
           <h2 className="card__title">Chơi với bạn bè qua link</h2>
-          <p className="card__text">Tạo phòng rồi gửi link cho bạn bè. Bạn bè mở link, bấm "Vào chơi" là bắt đầu.</p>
           <NameField value={name} onChange={setName} />
         </div>
 
@@ -153,7 +152,6 @@ export function CreatePage({ backend }: { backend: Backend }) {
               </button>
             ))}
           </div>
-          <p className="card__hint">Ngẫu nhiên thì máy chủ bốc thăm lúc bạn bè vào phòng, không ai chọn được. Đấu ván sau thì hai bên tự đổi màu.</p>
         </div>
 
         <button type="button" className="btn btn--primary btn--big" onClick={create} disabled={busy}>
@@ -241,7 +239,7 @@ function Waiting({ room, backend }: { room: RoomView; backend: Backend }) {
       <aside className="side">
         <div className="card">
           <h2 className="card__title">Gửi link mời bạn bè</h2>
-          <p className="card__text">Bạn bè mở link là vào chơi được ngay, không cần tài khoản.</p>
+          <p className="card__text">Bạn bè mở link là vào chơi, không cần tài khoản.</p>
           <input ref={input} className="field__input share__link" value={link} readOnly onFocus={(e) => e.target.select()} aria-label="Link mời" />
           <div className="share__actions">
             {canShare && (
@@ -303,7 +301,6 @@ function Invite({ room, send, ready }: { room: RoomView; send: (name: string) =>
     <Lobby side={side}>
       <div className="card">
         <h2 className="card__title">{room.host.name ? `${room.host.name} mời bạn chơi cờ` : 'Bạn được mời chơi cờ'}</h2>
-        <p className="card__text">Bấm "Vào chơi" là ván bắt đầu ngay.</p>
         <NameField value={name} onChange={setName} />
         <button type="button" className="btn btn--primary btn--big" onClick={join} disabled={!ready || sent}>
           {sent ? 'Đang vào…' : 'Vào chơi'}
