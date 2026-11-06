@@ -90,7 +90,8 @@ export function themeCss(theme: Theme): string {
       const rise = (SHEET_3D.h - SHEET_3D.w) / SHEET_3D.w / 8
       rules.push(sheetRules('html.pieces-3d cg-board piece', tall, SHEET_3D))
       rules.push(`html.pieces-3d cg-board piece { height: ${percent(SHEET_3D.h / SHEET_3D.w / 8)}; margin-top: -${percent(rise)}; }`)
-      rules.push(`html.pieces-3d .board-frame { margin-top: ${percent(rise)}; }`)
+      // Khay kim loại quanh bàn (--tray) đã chừa sẵn một ít chỗ phía trên.
+      rules.push(`html.pieces-3d .board-frame { margin-top: max(0px, calc(${percent(rise)} - var(--tray, 0px))); }`)
     }
   }
   if (theme.board !== 'classic') {

@@ -1,0 +1,510 @@
+/* Kiểu Titan: chất liệu cho cả web, nạp sau cùng (main.tsx) để phủ lên các file CSS khác.
+   Như một món đồ công nghệ đắt tiền: nền titan nhám có vân xước rất mảnh, khối nổi có viền vát bắt sáng (--bevel), nút
+   kim loại tròn, ô nhập lõm, bàn cờ nằm trong khay kim loại, đồng hồ số mảnh, đèn xanh băng (--led) báo tới lượt.
+   Muốn đổi sang kiểu khác sau này: thay file này và bộ màu đầu index.css, bố cục giữ nguyên. */
+:root {
+  --bevel: inset 0 1px 0 rgb(255 255 255 / 0.07), inset 0 -1px 0 rgb(0 0 0 / 0.6), 0 0 0 1px #25272c;
+  --panel: linear-gradient(180deg, #1a1b1f, #141518);
+  --knob: linear-gradient(180deg, #222428, #15161a);
+  --knob-hover: linear-gradient(180deg, #282a2f, #18191d);
+  --well: #0a0b0c;
+  --well-shadow: inset 0 2px 6px rgb(0 0 0 / 0.8), 0 0 0 1px #222428;
+  --silver: linear-gradient(180deg, #f4f6f9, #d4d8de);
+  --silver-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgb(0 0 0 / 0.2), 0 0 0 1px #2a2c31;
+  --led-ring: 0 0 0 1.5px var(--led), 0 0 18px rgb(125 211 252 / 0.28);
+  --tray: 9px;
+}
+
+body {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.045), transparent 360px),
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0.014) 0 1px, transparent 1px 3px),
+    var(--bg);
+}
+
+/* ---------- Khối nổi: thẻ, cột nước đi, thẻ kết quả, khung chat ---------- */
+.card,
+.tc,
+.moves,
+.result,
+.scorecard,
+.chat,
+.offer,
+.strip,
+.promotion__panel {
+  border-color: transparent;
+  background: var(--panel);
+  box-shadow: var(--bevel);
+}
+
+.card,
+.tc,
+.moves,
+.result,
+.scorecard,
+.chat,
+.offer {
+  border-radius: 16px;
+}
+
+.strip {
+  border-radius: 14px;
+}
+
+/* Lời xin của đối thủ (đi lại, hòa, đấu tiếp): viền đèn xanh cho dễ thấy */
+.offer {
+  box-shadow: var(--bevel), var(--led-ring);
+}
+
+.offer--mine {
+  box-shadow: var(--bevel);
+}
+
+.result {
+  border-left-width: 1px;
+}
+
+.result--win {
+  box-shadow: var(--bevel), inset 3px 0 0 var(--led);
+}
+
+/* ---------- Nút ---------- */
+.btn {
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--knob);
+  box-shadow: var(--bevel);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--knob-hover);
+  color: #fff;
+}
+
+.btn--primary,
+.btn--primary:hover:not(:disabled) {
+  background: var(--silver);
+  box-shadow: var(--silver-shadow), 0 6px 16px rgb(0 0 0 / 0.35);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #fff, #dde1e6);
+}
+
+.btn--confirm,
+.btn--confirm:hover:not(:disabled) {
+  background: var(--danger-strong);
+  box-shadow: 0 0 0 1px #ff6b5f, 0 0 18px rgb(217 58 47 / 0.4);
+  color: #fff;
+}
+
+.icon-btn,
+.board-tool,
+.act,
+.names__swap,
+.sound-sheet__close,
+.chat__emoji-btn {
+  border: 0;
+  background: var(--knob);
+  box-shadow: var(--bevel);
+}
+
+.icon-btn:hover,
+.board-tool:hover:not(:disabled),
+.act:hover:not(:disabled),
+.names__swap:hover {
+  background: var(--knob-hover);
+}
+
+.board-tool {
+  border-radius: 50%;
+  color: #cfd3d9;
+}
+
+.board-tool:hover:not(:disabled) {
+  color: #fff;
+}
+
+/* Nút bật/tắt đang bật (tự xoay bàn), lời xin đang chờ: sáng đèn xanh */
+.board-tool--on,
+.board-tool--on:hover:not(:disabled),
+.act--on,
+.act--on:disabled {
+  color: var(--led);
+  box-shadow: var(--bevel), var(--led-ring);
+}
+
+.act--danger,
+.act--danger:hover:not(:disabled) {
+  background: var(--danger-strong);
+  box-shadow: 0 0 0 1px #ff6b5f, 0 0 18px rgb(217 58 47 / 0.45);
+}
+
+.theme-btn[aria-expanded='true'] {
+  box-shadow: var(--bevel), var(--led-ring);
+}
+
+.nav-btn {
+  border: 0;
+  border-radius: 999px;
+  background: #1d1f23;
+  box-shadow: var(--bevel);
+  color: var(--muted);
+}
+
+.nav-btn:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.nav-btn--live,
+.nav-btn--live:hover:not(:disabled) {
+  background: var(--silver);
+  box-shadow: var(--silver-shadow);
+  color: var(--accent-ink);
+}
+
+.names__swap {
+  border-radius: 12px;
+}
+
+.mode {
+  box-shadow: var(--bevel);
+}
+
+.mode__link[aria-current='page'] {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+}
+
+/* ---------- Ô chọn: thời gian, màu quân, loại góp ý, chủ đề, bộ tiếng ---------- */
+.tc__choice,
+.color-choice,
+.fb-kind,
+.sound-event,
+.theme-chip,
+.chat__chip {
+  border-color: transparent;
+  background: #1d1f23;
+  box-shadow: var(--bevel);
+}
+
+.tc__choice {
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.tc__choice:hover,
+.color-choice:hover,
+.fb-kind:hover,
+.sound-event:hover {
+  border-color: transparent;
+  background: #24262b;
+}
+
+.tc__choice--on,
+.tc__choice--on:hover,
+.sound-event--on,
+.sound-event--on:hover {
+  background: var(--silver);
+  box-shadow: var(--silver-shadow);
+  color: var(--accent-ink);
+}
+
+.color-choice {
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.color-choice--on,
+.color-choice--on:hover,
+.fb-kind--on,
+.fb-kind--on:hover,
+.theme-chip--on,
+.theme-chip--on:hover {
+  border-color: transparent;
+  background: #26292e;
+  box-shadow: var(--bevel), 0 0 0 1.5px var(--accent);
+}
+
+.sound-event {
+  border-radius: 999px;
+}
+
+.seg {
+  background: var(--well);
+  box-shadow: var(--well-shadow);
+}
+
+.seg button[aria-pressed='true'] {
+  background: #2b2d32;
+  box-shadow: var(--bevel);
+}
+
+/* ---------- Ô nhập: lõm xuống như khắc vào kim loại ---------- */
+.field__input,
+.fb-input,
+.chat__input {
+  border-color: transparent;
+  background: var(--well);
+  box-shadow: var(--well-shadow);
+}
+
+.field__input {
+  border-radius: 12px;
+}
+
+/* Công tắc: rãnh lõm, bật thì sáng đèn xanh */
+.switch__track {
+  border-color: transparent;
+  background: var(--well);
+  box-shadow: var(--well-shadow);
+}
+
+.switch input:checked + .switch__track {
+  border-color: transparent;
+  background: var(--led);
+  box-shadow: 0 0 12px rgb(125 211 252 / 0.35);
+}
+
+.switch input:checked + .switch__track::after {
+  background: #0c1a22;
+}
+
+/* ---------- Bảng nổi: chọn chủ đề, chọn bộ tiếng, góp ý, mẹo ---------- */
+.sound-sheet,
+.theme-panel {
+  border-color: #2a2c31;
+  background: var(--panel);
+  box-shadow: var(--bevel), 0 24px 60px rgb(0 0 0 / 0.6);
+}
+
+.sound-sheet__head,
+.sound-sheet__foot {
+  border-color: #222428;
+}
+
+.sound-sheet__foot {
+  background: #141518;
+}
+
+.sound-sheet::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+/* ---------- Thanh người chơi ---------- */
+.player,
+.player--active {
+  --bar-bg: var(--bg);
+  padding-inline: 2px;
+  background: none;
+}
+
+.player__name {
+  font-weight: 500;
+}
+
+.player__turn {
+  color: var(--led);
+}
+
+/* Ảnh đại diện tròn, viền kim loại mảnh */
+.avatar {
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px #5f646d;
+}
+
+.avatar--blank,
+.player--active .avatar--blank {
+  background: #1f2125;
+}
+
+/* ---------- Đồng hồ: số mảnh như mặt đồng hồ đeo tay ---------- */
+/* Số đồng hồ, tỉ số dùng Geist thường (số đều nhau) thay vì Geist Mono: số 0 của Geist Mono có gạch chéo, nhìn như Ø. */
+/* Giữ quy ước đã chọn: bên Trắng hộp sáng, bên Đen hộp tối. Chưa tới lượt thì mờ đi; tới lượt thì sáng hẳn, có viền
+   và đèn xanh; sắp hết giờ thì chữ đỏ, đang chạy mà sắp hết giờ thì cả hộp đỏ. */
+.clock {
+  min-width: 0;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  font-weight: 300;
+  font-size: 1.75rem;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  gap: 9px;
+  opacity: 0.5;
+  transition:
+    opacity 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.clock--w,
+.clock--w:is(.clock--turn, .clock--running) {
+  background: linear-gradient(180deg, #f4f6f9, #d8dce2);
+  color: #101113;
+  font-weight: 400;
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgb(0 0 0 / 0.18), 0 0 0 1px #2a2c31;
+}
+
+.clock--b,
+.clock--b:is(.clock--turn, .clock--running) {
+  background: #08090a;
+  color: #eef0f3;
+  box-shadow: inset 0 2px 7px rgb(0 0 0 / 0.85), 0 1px 0 rgb(255 255 255 / 0.06), 0 0 0 1px #2a2c31;
+}
+
+.clock:is(.clock--turn, .clock--running) {
+  opacity: 1;
+}
+
+.clock--w:is(.clock--turn, .clock--running) {
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgb(0 0 0 / 0.18), 0 0 0 1.5px var(--led), 0 0 22px rgb(125 211 252 / 0.3);
+}
+
+.clock--b:is(.clock--turn, .clock--running) {
+  box-shadow: inset 0 2px 7px rgb(0 0 0 / 0.85), 0 0 0 1.5px var(--led), 0 0 22px rgb(125 211 252 / 0.22);
+}
+
+/* Đèn xanh nhỏ thay cho hình đồng hồ kim: đồng hồ đang chạy */
+.clock__icon {
+  display: none;
+}
+
+.clock--running::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--led);
+  box-shadow: 0 0 8px var(--led);
+}
+
+.clock--w.clock--low {
+  color: #b3261e;
+}
+
+.clock--b.clock--low {
+  color: #ff8a80;
+}
+
+.clock--running.clock--low,
+.clock--out {
+  opacity: 1;
+  background: var(--danger-strong);
+  color: #fff;
+  box-shadow: 0 0 0 1.5px #ff6b5f, 0 0 22px rgb(217 58 47 / 0.45);
+}
+
+.clock--running.clock--low::before {
+  background: #fff;
+  box-shadow: none;
+}
+
+@media (max-width: 599px) {
+  .clock {
+    padding: 6px 12px;
+    font-size: 1.5rem;
+  }
+}
+
+/* ---------- Bàn cờ trong khay kim loại ---------- */
+.board-frame {
+  padding: var(--tray);
+  border-radius: 16px;
+  background: linear-gradient(145deg, #3a3d43, #17181b 42%, #23252a 70%, #3a3d43);
+  box-shadow: var(--bevel), 0 26px 54px rgb(0 0 0 / 0.55);
+}
+
+.board-frame cg-board {
+  border-radius: 5px;
+}
+
+.board-frame--review {
+  outline-color: var(--led);
+}
+
+.promotion {
+  border-radius: 16px;
+}
+
+/* Điện thoại: bàn cờ tràn sát hai mép màn hình, khay vuông góc, viền mỏng hơn */
+@media (max-width: 599px) {
+  :root {
+    --tray: 7px;
+  }
+
+  .board-frame {
+    width: calc(100% + max(16px, env(safe-area-inset-left, 0px)) + max(16px, env(safe-area-inset-right, 0px)));
+    max-width: none;
+    margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+    margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+    border-radius: 0;
+  }
+
+  .promotion {
+    border-radius: 0;
+  }
+}
+
+/* ---------- Cột nước đi, dải nước đi ---------- */
+.moves__move:hover,
+.strip__move:hover {
+  background: #1f2125;
+}
+
+.moves__move--on,
+.moves__move--on:hover,
+.strip__move--on,
+.strip__move--on:hover {
+  background: #2c2f35;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07);
+  color: var(--ink);
+}
+
+.moves__move--on .moves__time,
+.strip__move--on .strip__time {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.moves__san,
+.strip__san {
+  font-weight: 500;
+}
+
+/* ---------- Chat ---------- */
+.chat__head {
+  border-color: #222428;
+}
+
+.chat__text {
+  background: #24262b;
+}
+
+.chat__chip {
+  border-radius: 999px;
+}
+
+.chat__send {
+  background: var(--silver);
+  box-shadow: var(--silver-shadow);
+  color: var(--accent-ink);
+}
+
+/* ---------- Phòng chờ ---------- */
+.waiting__dot {
+  background: var(--led);
+  box-shadow: 0 0 8px var(--led);
+}
+
+.demo-note {
+  border-color: #3a3d43;
+  background: #141518;
+}

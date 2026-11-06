@@ -357,7 +357,7 @@
 
 .scorecard__num {
   padding: 0 8px;
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: 2rem;
   font-weight: 300;
   line-height: 1.1;
@@ -366,7 +366,7 @@
 
 .scorecard__dash {
   color: var(--muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: 1.5rem;
   font-weight: 300;
 }
@@ -401,8 +401,8 @@
 
 .scoreline__num {
   flex: none;
-  font-family: var(--font-mono);
-  font-weight: 400;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   font-size: 0.95rem;
 }
 

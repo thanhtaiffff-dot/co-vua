@@ -212,6 +212,48 @@ body {
   }
 }
 
+/* Bảng Mẹo và ghi công: mỗi mẹo một tên đậm và một câu, ghi công chữ nhỏ ở cuối */
+.about {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 14px 18px max(18px, env(safe-area-inset-bottom, 0px));
+}
+
+.about__tips {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+}
+
+.about__tip dt {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.about__tip dd {
+  margin: 3px 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.about__credits {
+  margin: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
 /* Điện thoại: thu gọn đầu trang cho vừa tên web, nút chuyển chế độ và ba nút bên phải */
 @media (max-width: 599px) {
   .topbar {
@@ -272,13 +314,15 @@ body {
 
 /* ---------- Bong bóng chữ của nút chỉ có hình ---------- */
 /* Nút có data-tip: rê chuột vào (hay bấm Tab tới) thì hiện bong bóng chữ phía trên nút (nút ở đầu trang thì phía dưới).
-   Lớp tip--show: hiện luôn (vd "Bấm lần nữa để đầu hàng"), cả trên điện thoại. */
+   Lớp tip--show: hiện luôn (vd "Bấm lần nữa để đầu hàng"), cả trên điện thoại. Bong bóng đang ẩn là display: none để
+   không chiếm chỗ (bong bóng ẩn mà vẫn chiếm chỗ ở mép phải làm trang trên điện thoại bị kéo ngang được). */
 [data-tip] {
   position: relative;
 }
 
 [data-tip]::after {
   content: attr(data-tip);
+  display: none;
   position: absolute;
   bottom: calc(100% + 9px);
   left: 50%;
@@ -293,17 +337,15 @@ body {
   white-space: nowrap;
   box-shadow: 0 6px 18px rgb(0 0 0 / 0.45);
   pointer-events: none;
-  opacity: 0;
-  transform: translate(-50%, 4px);
+  transform: translateX(-50%);
   transition:
     opacity 120ms ease,
-    transform 120ms ease;
+    translate 120ms ease;
 }
 
 .topbar [data-tip]::after {
   top: calc(100% + 9px);
   bottom: auto;
-  transform: translate(-50%, -4px);
 }
 
 /* Nút sát mép phải: bong bóng canh phải cho khỏi tràn ra ngoài màn hình */
@@ -311,36 +353,30 @@ body {
 .actions > [data-tip]:last-child::after {
   left: auto;
   right: 0;
-  transform: translateY(4px);
-}
-
-.topbar__tools > [data-tip]:last-child::after {
-  transform: translateY(-4px);
+  transform: none;
 }
 
 @media (hover: hover) {
   [data-tip]:hover::after {
-    opacity: 1;
-    transform: translate(-50%, 0);
+    display: block;
   }
 }
 
 [data-tip]:focus-visible::after,
 .tip--show[data-tip]::after {
-  opacity: 1;
-  transform: translate(-50%, 0);
+  display: block;
 }
 
-@media (hover: hover) {
-  .topbar__tools > [data-tip]:last-child:hover::after,
-  .actions > [data-tip]:last-child:hover::after {
-    transform: none;
+/* Hiện ra thì mờ dần lên và trượt nhẹ vào chỗ */
+@starting-style {
+  [data-tip]::after {
+    opacity: 0;
+    translate: 0 4px;
   }
-}
 
-.topbar__tools > [data-tip]:last-child:focus-visible::after,
-.actions > [data-tip]:last-child:is(:focus-visible, .tip--show)::after {
-  transform: none;
+  .topbar [data-tip]::after {
+    translate: 0 -4px;
+  }
 }
 
 .act--danger[data-tip]::after {
@@ -1046,8 +1082,8 @@ body:has(.sound-sheet[open]) {
 /* ---------- Bàn cờ ---------- */
 /* Máy tính: bàn cờ to vừa màn hình (theo chiều cao, hay theo chiều ngang nếu cửa sổ hẹp), nhân với cỡ người chơi tự chỉnh
    bằng nút Phóng to, Thu nhỏ (--board-zoom, xem boardView.ts). Bên phải bàn là cột nút chỉnh bàn cờ, rồi tới cột điều khiển.
-   Đầu trang và cả khối bàn cờ cùng rộng --page-w, nằm giữa màn hình. 200px là chiều cao dành cho đầu trang và hai thanh
-   người chơi; 52px là lề hai bên cộng chỗ cho thanh cuộn.
+   Đầu trang và cả khối bàn cờ cùng rộng --page-w, nằm giữa màn hình. 216px là chiều cao dành cho đầu trang, hai thanh
+   người chơi và khay kim loại quanh bàn; 52px là lề hai bên cộng chỗ cho thanh cuộn.
    Cột chat bên trái bàn cờ (chơi online) chỉ cần đặt --chat-w trên .app và thêm cột đầu cho lưới .table: bàn cờ tự thu lại
    cho vừa. --chat-space là chỗ cột chat chiếm kể cả khe với bàn cờ (không có cột chat thì không có khe). */
 @media (min-width: 900px) {
@@ -1058,14 +1094,14 @@ body:has(.sound-sheet[open]) {
     --table-gap: 28px;
     --chat-space: calc(var(--chat-w) + min(var(--chat-w), var(--table-gap)));
     --beside-board: calc(var(--chat-space) + 8px + var(--tools-w) + var(--table-gap) + var(--side-w));
-    --board-fit: min(100vh - 200px, 100vw - 52px - var(--beside-board));
+    --board-fit: min(100vh - 216px, 100vw - 52px - var(--beside-board));
     --board: max(320px, var(--board-zoom, 1) * var(--board-fit));
     --page-w: calc(var(--board) + var(--beside-board));
   }
 
   @supports (height: 100dvh) {
     .app {
-      --board-fit: min(100dvh - 200px, 100vw - 52px - var(--beside-board));
+      --board-fit: min(100dvh - 216px, 100vw - 52px - var(--beside-board));
     }
   }
 
@@ -1623,8 +1659,7 @@ body:has(.sound-sheet[open]) {
 
 .status__meta {
   margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   color: var(--muted);
 }
 

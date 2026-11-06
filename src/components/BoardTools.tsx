@@ -3,7 +3,7 @@
 // có Phóng to, Thu nhỏ vì bàn cờ đã rộng hết màn hình.
 import type { ReactNode } from 'react'
 import { useBoardZoom, useFullscreen, zoomBoard, ZOOM_MAX, ZOOM_MIN } from '../boardView'
-import { ACTION_ICONS } from './ActionButton'
+import { ACTION_ICONS } from './actionIcons'
 
 type Props = {
   onFlip?: () => void // không có thì không hiện nút Lật bàn
