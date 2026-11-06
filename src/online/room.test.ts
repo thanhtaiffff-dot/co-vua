@@ -18,7 +18,7 @@ import {
   viewsOf,
   type RoomData,
 } from './room'
-import { CHAT_BURST, CHAT_KEEP, CHAT_LIMIT, ROOM_ID, fromUci, newRoomId, toUci, type ClientMessage, type ColorChoice } from './protocol'
+import { CHAT_BURST, CHAT_KEEP, CHAT_LIMIT, REMATCH_ASKS, ROOM_ID, fromUci, newRoomId, toUci, type ClientMessage, type ColorChoice } from './protocol'
 
 const HOST = 'host-token-aaaaaaaaaaaa'
 const GUEST = 'guest-token-bbbbbbbbbbb'
@@ -331,11 +331,39 @@ describe('đầu hàng, xin hòa, tái đấu', () => {
     send(r, HOST, { t: 'draw', yes: true })
     send(r, GUEST, { t: 'draw', yes: false })
     expect(view(r, GUEST, 0, BOTH).game!.drawOffer).toBeNull()
-    send(r, HOST, { t: 'draw', yes: true })
-    play(r, ['g1f3']) // chính người xin đi tiếp: lời xin vẫn còn
+    play(r, ['g1f3', 'b8c6'])
+    expect(send(r, HOST, { t: 'draw', yes: true })).toBe(true) // có nước mới thì xin lại được
+    play(r, ['f1c4']) // chính người xin đi tiếp: lời xin vẫn còn
     expect(view(r, GUEST, 0, BOTH).game!.drawOffer).toBe('w')
-    play(r, ['b8c6'])
+    play(r, ['g8f6'])
     expect(view(r, GUEST, 0, BOTH).game!.drawOffer).toBeNull()
+  })
+
+  it('mỗi lượt chỉ xin hòa một lần: bị từ chối hay tự rút lời thì chờ có nước mới', () => {
+    const r = started()
+    play(r, ['e2e4', 'e7e5'])
+    expect(send(r, HOST, { t: 'draw', yes: true })).toBe(true)
+    expect(send(r, GUEST, { t: 'draw', yes: false })).toBe(true)
+    expect(view(r, HOST, 0, BOTH).game!.drawAsked).toEqual({ w: true, b: false })
+    // Kẻ phá xin rồi rút liên tục: chỉ lần đầu tới được đối thủ.
+    for (let i = 0; i < 50; i++) expect(send(r, HOST, { t: 'draw', yes: true })).toBe(false)
+    // Bên kia chưa xin lượt này thì vẫn xin được; tự rút lời rồi thì lượt đó cũng không xin lại được.
+    expect(send(r, GUEST, { t: 'draw', yes: true })).toBe(true)
+    expect(send(r, GUEST, { t: 'draw', yes: false })).toBe(true)
+    expect(send(r, GUEST, { t: 'draw', yes: true })).toBe(false)
+    play(r, ['g1f3'])
+    expect(view(r, HOST, 0, BOTH).game!.drawAsked).toEqual({ w: false, b: false })
+    expect(send(r, GUEST, { t: 'draw', yes: true })).toBe(true)
+  })
+
+  it('đã xin hòa trong lượt này vẫn đồng ý được lời xin hòa của bên kia', () => {
+    const r = started()
+    play(r, ['e2e4', 'e7e5'])
+    send(r, HOST, { t: 'draw', yes: true })
+    send(r, GUEST, { t: 'draw', yes: false })
+    send(r, GUEST, { t: 'draw', yes: true })
+    expect(send(r, HOST, { t: 'draw', yes: true })).toBe(true)
+    expect(view(r, HOST, 0, BOTH).game!.status).toEqual({ kind: 'agreed' })
   })
 
   it('tái đấu: cả hai đồng ý thì ván mới đổi màu, tỉ số cộng dồn', () => {
@@ -467,6 +495,36 @@ describe('đấu ván nữa: từ chối', () => {
   it('chưa ai mời thì không có gì để từ chối', () => {
     const r = finished()
     expect(send(r, GUEST, { t: 'rematch', yes: false })).toBe(false)
+  })
+
+  it('mỗi bên mời tối đa REMATCH_ASKS lần (rút rồi mời lại cũng tính); đồng ý lời mời của bên kia thì không tính', () => {
+    const r = finished()
+    for (let i = 0; i < REMATCH_ASKS; i++) {
+      expect(send(r, HOST, { t: 'rematch', yes: true })).toBe(true)
+      expect(send(r, HOST, { t: 'rematch', yes: false })).toBe(true)
+    }
+    expect(view(r, GUEST, 0, BOTH).game!.rematchAsked).toEqual({ w: REMATCH_ASKS, b: 0 })
+    for (let i = 0; i < 50; i++) expect(send(r, HOST, { t: 'rematch', yes: true })).toBe(false)
+    // Bên kia mời thì vẫn đồng ý được, ván mới đếm lại từ đầu.
+    expect(send(r, GUEST, { t: 'rematch', yes: true })).toBe(true)
+    expect(send(r, HOST, { t: 'rematch', yes: true })).toBe(true)
+    const game = view(r, HOST, 0, BOTH).game!
+    expect(game.number).toBe(2)
+    expect(game.rematchAsked).toEqual({ w: 0, b: 0 })
+  })
+
+  it('phòng lưu từ bản trước (chưa đếm lượt xin hòa, lượt mời) vẫn xin hòa và mời đấu tiếp được', () => {
+    const r = started()
+    play(r, ['f2f3', 'e7e5'])
+    const old = JSON.parse(JSON.stringify(r)) as RoomData
+    const game = old.game as Partial<NonNullable<RoomData['game']>>
+    delete game.drawAsked
+    delete game.rematchAsked
+    const upgraded = upgradeRoom(old)
+    expect(send(upgraded, HOST, { t: 'draw', yes: true })).toBe(true)
+    play(upgraded, ['g2g4', 'd8h4'])
+    expect(send(upgraded, HOST, { t: 'rematch', yes: true })).toBe(true)
+    expect(view(upgraded, GUEST, 0, BOTH).game!.rematchAsked).toEqual({ w: 1, b: 0 })
   })
 })
 

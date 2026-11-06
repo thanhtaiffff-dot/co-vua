@@ -22,7 +22,7 @@ import { loadSaved, save } from '../storage'
 import { ChatBubble, ChatButton, ChatPanel } from './ChatPanel'
 import type { ConnectionStatus } from './connection'
 import { MAX_PREMOVES, premoveBoard, premoveToMove, type Premove } from './premove'
-import { fromUci, takebackPlies, toUci, type ClientMessage, type GameView, type OnlineStatus, type RoomView } from './protocol'
+import { fromUci, REMATCH_ASKS, takebackPlies, toUci, type ClientMessage, type GameView, type OnlineStatus, type RoomView } from './protocol'
 import { useChatAlerts, useMediaQuery, type ChatPhase } from './useChat'
 import type { ChatLog } from './useRoom'
 
@@ -318,6 +318,10 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
   const canTakeback = me !== null && !over && game.takeback === null && !game.takebackAsked[me] && moves.length >= myTakeback
   const askedOffer = me !== null && game.takeback === me
   const drawOffered = me !== null && game.drawOffer === me
+  // Đã xin hòa trong lượt này và bị từ chối (hay đã rút lời): chờ có nước mới rồi xin lại.
+  const drawUsed = me !== null && game.drawAsked[me] && !drawOffered
+  const rematchLeft = me ? REMATCH_ASKS - game.rematchAsked[me] : 0
+  const canInvite = me !== null && opponent !== null && !game.rematch[me] && !game.rematch[opponent] && game.rematchDeclined !== me && rematchLeft > 0
 
   const chatPhase: ChatPhase = over ? 'end' : moves.length < 4 ? 'start' : 'middle'
   const chatPanel = (onClose?: () => void) =>
@@ -500,6 +504,8 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
               <p className="offer__text">Đang chờ {name(opponent)} đồng ý đấu ván nữa…</p>
             ) : game.rematch[opponent] ? (
               <p className="offer__text">{name(opponent)} muốn đấu ván nữa (hai bên đổi màu).</p>
+            ) : rematchLeft <= 0 ? (
+              <p className="offer__text">Bạn đã mời {REMATCH_ASKS} lần, giờ chờ {name(opponent)} mời lại.</p>
             ) : (
               game.rematchDeclined === opponent && <p className="offer__text">Bạn đã từ chối đấu ván nữa.</p>
             )}
@@ -519,12 +525,16 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
                   Thôi không đấu nữa
                 </button>
               )}
-              {!game.rematch[me] && !game.rematch[opponent] && game.rematchDeclined !== me && (
+              {canInvite && (
                 <button type="button" className="btn btn--primary" onClick={() => send({ t: 'rematch', yes: true })}>
                   Đấu ván nữa
                 </button>
               )}
-              <button type="button" className={`btn${game.rematchDeclined === me ? ' btn--primary' : ''}`} onClick={() => navigate('/online')}>
+              <button
+                type="button"
+                className={`btn${!canInvite && !game.rematch[me] && !game.rematch[opponent] ? ' btn--primary' : ''}`}
+                onClick={() => navigate('/online')}
+              >
                 Tạo phòng mới
               </button>
             </div>
@@ -546,9 +556,9 @@ export function OnlineGame({ game, role, chat, receivedAt, connection, send, lag
             <button
               type="button"
               className="btn"
-              disabled={early || drawOffered}
+              disabled={early || drawOffered || drawUsed}
               onClick={() => send({ t: 'draw', yes: true })}
-              title={early ? 'Xin hòa được sau khi mỗi bên đi một nước' : undefined}
+              title={early ? 'Xin hòa được sau khi mỗi bên đi một nước' : drawUsed ? 'Mỗi lượt chỉ xin hòa được một lần' : undefined}
             >
               {drawOffered ? 'Đã xin hòa' : 'Xin hòa'}
             </button>
