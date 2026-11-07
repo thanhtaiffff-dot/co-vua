@@ -3,7 +3,7 @@
 // và một "bạn bè ảo" tự đi quân để thử đi trước, xin đi lại, xin hòa, đấu ván nữa, chat khi chỉ có một mình.
 import { Chess, type Move } from 'chess.js'
 import { chat, chatOf, flagDue, checkFlag, createRoom, handle, seatOf, view, type RoomData, type Seat } from './room'
-import { fromUci, newRoomId, type ChatLine, type ClientMessage, type ServerMessage } from './protocol'
+import { fromUci, newRoomId, REMATCH_ASKS, type ChatLine, type ClientMessage, type ServerMessage } from './protocol'
 import type { Backend } from './backend'
 import type { ConnectionEvents } from './connection'
 import { materialDiff, replay } from '../game/rules'
@@ -125,8 +125,8 @@ function botAction(room: DemoRoom): { delay: number; message: () => ClientMessag
   if (game.end) {
     if (game.rematch[seat]) return null
     if (game.rematch[you]) return { delay: 1200, message: () => ({ t: 'rematch', yes: true }) }
-    // Bạn chưa mời thì một lúc sau nó tự rủ; bạn đã từ chối thì thôi.
-    if (game.rematchDeclined === seat) return null
+    // Bạn chưa mời thì một lúc sau nó tự rủ; bạn đã từ chối (hay nó đã mời đủ số lần) thì thôi.
+    if (game.rematchDeclined === seat || game.rematchAsked[seat] >= REMATCH_ASKS) return null
     return { delay: 4500, message: () => ({ t: 'rematch', yes: true }) }
   }
   const chess = replay(game.moves.map((m) => fromUci(m)!))

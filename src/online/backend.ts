@@ -17,6 +17,11 @@ export const serverBackend: Backend = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
     })
+    if (response.status === 429) {
+      // Người gác cửa của máy chủ từ chối (worker/gate.ts): mạng này tạo phòng dồn dập quá, hay cả web đang quá nhiều.
+      const body = (await response.json().catch(() => null)) as { error?: unknown } | null
+      throw new Error(body?.error === 'busy' ? 'busy' : 'slow')
+    }
     if (!response.ok) throw new Error(`Máy chủ trả lỗi ${response.status}`)
     return ((await response.json()) as CreateResponse).id
   },

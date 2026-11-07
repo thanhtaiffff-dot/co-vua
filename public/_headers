@@ -1,0 +1,22 @@
+# Chốt phụ cho trình duyệt. Cloudflare tự đọc file này và gắn các dòng dưới vào mọi trang, mọi file của web
+# (không gắn cho /api/..., phần đó máy chủ trong worker/ tự trả lời). Mỗi dòng dặn trình duyệt một điều:
+#
+# Content-Security-Policy: chỉ chạy mã, chỉ tải phông chữ và hình của chính web ('self'), giống lichess. Ngoại lệ:
+#   - style-src 'unsafe-inline': chủ đề quân và bàn cờ tự viết thẻ <style> (src/theme.ts). Lichess cũng cho như vậy.
+#   - fonts.googleapis.com, fonts.gstatic.com: phông chữ Be Vietnam Pro và JetBrains Mono (index.html).
+#   - wss://*.thanhtaiffff.workers.dev: đường dây chơi online. Trình duyệt mới hiểu 'self' gồm cả đường dây này,
+#     Safari cũ (iOS 15 trở về trước) thì chưa, nên ghi rõ. Đổi sang tên miền riêng thì thêm wss://<tên miền> vào đây.
+#   Dùng thêm phông chữ, hình hay mã từ web khác thì PHẢI ghi thêm địa chỉ đó vào dòng này, không thì trình duyệt chặn.
+#   frame-ancestors 'none': không trang nào được nhúng web vào khung (chống trò lừa bấm nhầm nút Đầu hàng).
+# X-Frame-Options: như frame-ancestors, cho trình duyệt cũ.
+# X-Content-Type-Options: không đoán kiểu file (file nói là hình thì chỉ là hình).
+# Referrer-Policy: bấm sang web khác thì chỉ báo tên web này, không báo đường dẫn, nên link phòng không bị lộ.
+# Permissions-Policy: web không dùng camera, micro, vị trí; khoá luôn cho chắc.
+# Cross-Origin-Opener-Policy: trang lạ mở web cờ ra tab mới thì không điều khiển được tab đó.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' wss://*.thanhtaiffff.workers.dev; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Cross-Origin-Opener-Policy: same-origin

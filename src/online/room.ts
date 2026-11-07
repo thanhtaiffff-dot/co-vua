@@ -11,6 +11,7 @@ import {
   CHAT_LIMIT,
   CHAT_PER_SECOND,
   fromUci,
+  REMATCH_ASKS,
   takebackPlies,
   type ChatLine,
   type ClientMessage,
@@ -45,8 +46,10 @@ export type GameData = {
   takeback: Seat | null // ghế đang xin đi lại
   takebackDeclined: Seat | null // ghế vừa bị từ chối cho đi lại; có nước mới thì xoá
   takebackAsked: [boolean, boolean] // ghế đã xin đi lại trong lượt này: mỗi lượt xin một lần, khỏi bị xin dồn dập
+  drawAsked: [boolean, boolean] // ghế đã xin hòa trong lượt này: mỗi lượt xin một lần, như xin đi lại
   rematch: [boolean, boolean]
   rematchDeclined: Seat | null // ghế vừa bị từ chối đấu ván nữa: không mời lại được, chỉ còn đồng ý nếu bên kia đổi ý mời
+  rematchAsked: [number, number] // ghế đã mời đấu ván nữa bao nhiêu lần sau ván này (tối đa REMATCH_ASKS)
   lagQuota: [number, number] // quỹ bù giờ còn lại của từng ghế trong ván này (ms), xem LAG_QUOTA_GAIN
 }
 
@@ -195,8 +198,10 @@ function newGame(number: number, white: Seat, control: TimeControl | null): Game
     takeback: null,
     takebackDeclined: null,
     takebackAsked: [false, false],
+    drawAsked: [false, false],
     rematch: [false, false],
     rematchDeclined: null,
+    rematchAsked: [0, 0],
     lagQuota: [LAG_QUOTA_START, LAG_QUOTA_START],
   }
 }
@@ -216,7 +221,9 @@ export function upgradeRoom(room: RoomData): RoomData {
   game.takeback ??= null
   game.takebackDeclined ??= null
   if (!Array.isArray(game.takebackAsked)) game.takebackAsked = [false, false]
+  if (!Array.isArray(game.drawAsked)) game.drawAsked = [false, false]
   game.rematchDeclined ??= null
+  if (!Array.isArray(game.rematchAsked)) game.rematchAsked = [0, 0]
   if (!Array.isArray(game.clock.spent)) {
     // Bản trước chưa ghi thời gian nghĩ. Khi không tính giờ thì cũng chưa ghi lúc bắt đầu lượt: lấy lúc phòng đổi gần nhất.
     game.clock.spent = game.moves.map(() => null)
@@ -304,8 +311,7 @@ function move(room: RoomData, seat: Seat, uci: string, ply: number, lag: number,
   if (flag !== null) game.lagQuota[seat] = Math.min(LAG_QUOTA_MAX, game.lagQuota[seat] - credit + LAG_QUOTA_GAIN)
   // Đối thủ đang xin hòa mà mình đi tiếp thay vì đồng ý, coi như từ chối.
   if (game.drawOffer !== null && game.drawOffer !== seat) game.drawOffer = null
-  // Có nước mới thì lời xin đi lại (nếu có) cũng thôi, và mỗi bên lại được xin một lần.
-  clearTakeback(game)
+  newTurn(game)
   const status = gameStatus(chess)
   if (status.kind !== 'playing') finish(room, game, status, now)
   return true
@@ -329,15 +335,24 @@ function draw(room: RoomData, seat: Seat, yes: boolean, now: number): boolean {
     return true
   }
   if (game.drawOffer === seat) return false
-  if (game.drawOffer === null) game.drawOffer = seat
-  else finish(room, game, { kind: 'agreed' }, now)
+  if (game.drawOffer !== null) {
+    finish(room, game, { kind: 'agreed' }, now) // bên kia đang xin hòa: đồng ý
+    return true
+  }
+  // Mỗi bên mỗi lượt chỉ xin hòa một lần: bị từ chối hay tự rút lời thì chờ có nước mới, khỏi bị xin rồi rút liên tục
+  // làm phiền đối thủ (lichess còn chặt hơn: phải chờ 10 nước).
+  if (game.drawAsked[seat]) return false
+  game.drawOffer = seat
+  game.drawAsked[seat] = true
   return true
 }
 
-function clearTakeback(game: GameData): void {
+// Có nước mới (hay vừa cho đi lại): lời xin đi lại (nếu có) thôi, và mỗi bên lại được xin đi lại, xin hòa một lần.
+function newTurn(game: GameData): void {
   game.takeback = null
   game.takebackDeclined = null
   game.takebackAsked = [false, false]
+  game.drawAsked = [false, false]
 }
 
 // Xin đi lại (như chess.com, lichess): đối thủ đồng ý thì ván lùi lại, tới lượt người xin đi lại nước đó; đồng hồ quay về
@@ -360,7 +375,7 @@ function takeback(room: RoomData, seat: Seat, yes: boolean, now: number): boolea
     game.moves = game.moves.slice(0, -plies)
     for (let i = 0; i < plies; i++) game.clock = undoMove(game.clock, now)
     game.drawOffer = null
-    clearTakeback(game)
+    newTurn(game)
     return true
   }
   if (game.takeback === seat || game.takebackAsked[seat]) return false
@@ -374,7 +389,7 @@ function takeback(room: RoomData, seat: Seat, yes: boolean, now: number): boolea
 
 // Hết ván, hai bên cùng bấm tái đấu thì chơi ván mới cùng mức giờ, đổi màu cho nhau (như chess.com).
 // Bên kia mời mà mình không muốn thì từ chối; bị từ chối rồi thì không mời lại được (khỏi làm phiền), trừ khi bên kia
-// đổi ý mời lại mình.
+// đổi ý mời lại mình. Mỗi bên mời tối đa REMATCH_ASKS lần, khỏi mời rồi rút liên tục.
 function rematch(room: RoomData, seat: Seat, yes: boolean): boolean {
   const game = room.game
   if (!game || !game.end) return false
@@ -388,6 +403,11 @@ function rematch(room: RoomData, seat: Seat, yes: boolean): boolean {
     return true
   }
   if (game.rematch[seat] || (game.rematchDeclined === seat && !game.rematch[other])) return false
+  if (!game.rematch[other]) {
+    // Mời mới (không phải đồng ý lời mời của bên kia): có giới hạn số lần.
+    if (game.rematchAsked[seat] >= REMATCH_ASKS) return false
+    game.rematchAsked[seat] += 1
+  }
   game.rematch[seat] = true
   if (game.rematchDeclined === other) game.rematchDeclined = null
   if (game.rematch[0] && game.rematch[1]) room.game = newGame(game.number + 1, game.white === 0 ? 1 : 0, room.control)
@@ -487,8 +507,10 @@ export function viewsOf(room: RoomData, now: number, online: [boolean, boolean])
       takeback: color(game.takeback),
       takebackDeclined: color(game.takebackDeclined),
       takebackAsked: byColor((s) => game.takebackAsked[s]),
+      drawAsked: byColor((s) => game.drawAsked[s]),
       rematch: byColor((s) => game.rematch[s]),
       rematchDeclined: color(game.rematchDeclined),
+      rematchAsked: byColor((s) => game.rematchAsked[s]),
     }
   }
   return (seat) => ({

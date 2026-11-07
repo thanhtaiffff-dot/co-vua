@@ -35,8 +35,10 @@ export type GameView = {
   takeback: Color | null // bên đang xin đi lại
   takebackDeclined: Color | null // bên vừa bị từ chối cho đi lại (tới nước sau thì thôi)
   takebackAsked: Record<Color, boolean> // bên đã xin đi lại trong lượt này (mỗi lượt xin một lần)
+  drawAsked: Record<Color, boolean> // bên đã xin hòa trong lượt này (mỗi lượt xin một lần)
   rematch: Record<Color, boolean> // bên nào đã bấm tái đấu
   rematchDeclined: Color | null // bên vừa bị từ chối đấu ván nữa
+  rematchAsked: Record<Color, number> // bên đó đã mời đấu ván nữa bao nhiêu lần sau ván này (tối đa REMATCH_ASKS)
 }
 
 export type RoomView = {
@@ -76,6 +78,10 @@ export type ServerMessage = { t: 'state'; room: RoomView } | { t: 'chat'; lines:
 // Mỗi phòng cho tối đa bấy nhiêu người xem cùng lúc (không tính hai người chơi), để kẻ có link không mở
 // hàng trăm đường dây làm đơ ván.
 export const MAX_VISITORS = 8
+
+// Hết ván, mỗi bên mời đấu ván nữa tối đa bấy nhiêu lần (rút lời mời rồi mời lại cũng tính), để không ai mời rồi rút
+// liên tục làm phiền bên kia. Đồng ý lời mời của bên kia thì không tính.
+export const REMATCH_ASKS = 3
 
 // Mỗi câu chat dài tối đa CHAT_LIMIT ký tự; máy chủ giữ CHAT_KEEP câu gần nhất của cả phòng (qua các ván).
 // Mỗi người gửi liền một lúc tối đa CHAT_BURST câu, sau đó CHAT_PER_SECOND câu mỗi giây; dày hơn thì máy chủ bỏ.

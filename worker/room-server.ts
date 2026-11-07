@@ -11,12 +11,14 @@ import { DurableObject } from 'cloudflare:workers'
 import { MAX_VISITORS, type ChatLine, type CreateRequest, type ErrorCode, type ServerMessage } from '../src/online/protocol'
 import { chat, chatOf, checkFlag, createRoom, flagDue, handle, parseClientMessage, seatOf, upgradeRoom, viewsOf, type RoomData, type Seat } from '../src/online/room'
 import type { FeedbackBox } from './feedback-box'
+import type { Gate } from './gate'
 
 // GITHUB_TOKEN: token GitHub của chủ web (Secret trên Cloudflare, không nằm trong code); GITHUB_REPO: repo riêng tư nhận
 // góp ý, khai trong wrangler.jsonc; GITHUB_API: chỉ để bài kiểm tra máy chủ trỏ tới GitHub giả.
 export type Env = {
   ROOMS: DurableObjectNamespace<ChessRoom>
   FEEDBACK: DurableObjectNamespace<FeedbackBox>
+  GATE: DurableObjectNamespace<Gate>
   GITHUB_TOKEN?: string
   GITHUB_REPO?: string
   GITHUB_API?: string

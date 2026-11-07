@@ -99,6 +99,12 @@ function savedControl(): TimeControl | null {
   return TIME_CONTROLS.flatMap((group) => group.controls).find((c) => sameControl(c, saved as TimeControl)) ?? DEFAULT_CONTROL
 }
 
+// Máy chủ từ chối tạo phòng (xem serverBackend.createRoom): mạng này tạo dồn dập quá, hay cả web đang quá nhiều.
+const CREATE_REFUSED = {
+  slow: 'Bạn vừa tạo nhiều phòng liền, chờ vài phút rồi tạo tiếp nhé.',
+  busy: 'Lúc này web đang có quá nhiều phòng mới, chờ một lát rồi bấm lại nhé.',
+}
+
 export function CreatePage({ backend }: { backend: Backend }) {
   const [name, setName] = useState(myName)
   const [control, setControl] = useState<TimeControl | null>(savedControl)
@@ -118,8 +124,9 @@ export function CreatePage({ backend }: { backend: Backend }) {
     try {
       const id = await backend.createRoom({ token: myToken(), name: name.trim(), control, color })
       navigate(`/phong/${id}`)
-    } catch {
-      setError('Chưa tạo được phòng. Kiểm tra mạng rồi bấm lại nhé.')
+    } catch (problem) {
+      const why = problem instanceof Error ? problem.message : ''
+      setError(why === 'slow' || why === 'busy' ? CREATE_REFUSED[why] : 'Chưa tạo được phòng. Kiểm tra mạng rồi bấm lại nhé.')
       setBusy(false)
     }
   }
